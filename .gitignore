@@ -12,6 +12,9 @@ wheels/
 # Environment variables
 .env
 
+# mac
+.DS_Store
+
 # output
 output/
 
