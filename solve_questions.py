@@ -1,0 +1,301 @@
+import json
+import os
+import base64
+import glob
+from openai import OpenAI
+import anthropic
+from datetime import datetime
+from dotenv import load_dotenv
+from tqdm import tqdm
+import argparse
+from PIL import Image
+import io
+
+# .envファイルを読み込む
+load_dotenv()
+
+# 結果保存用のディレクトリを作成
+os.makedirs('answer', exist_ok=True)
+
+class MedicalExamSolver:
+    def __init__(self):
+        self.models = {
+            "o1": {
+                "api_key": os.getenv("OPENAI_API_KEY"),
+                "base_url": None,
+                "model_name": "o1",
+                "supports_vision": True,
+                "api_type": "openai"
+            },
+            "gpt-4o": {
+                "api_key": os.getenv("OPENAI_API_KEY"),
+                "base_url": None,
+                "model_name": "gpt-4o",
+                "supports_vision": True,
+                "api_type": "openai"
+            },
+            "gemini": {
+                "api_key": os.getenv("GEMINI_API_KEY"),
+                "base_url": "https://generativelanguage.googleapis.com/v1beta/",
+                "model_name": "gemini-2.0-flash-exp",
+                "supports_vision": True,
+                "api_type": "openai"
+            },
+            "deepseek": {
+                "api_key": os.getenv("DEEPSEEK_API_KEY"),
+                "base_url": "https://api.deepseek.com/v1",
+                "model_name": "deepseek-chat",
+                "supports_vision": False,
+                "api_type": "openai"
+            },
+            "claude": {
+                "api_key": os.getenv("ANTHROPIC_API_KEY"),
+                "base_url": None,
+                "model_name": "claude-3-5-sonnet-20241022",
+                "supports_vision": True,
+                "api_type": "anthropic"
+            }
+        }
+
+    def compress_image(self, image_path, max_size=1920):
+        """画像を圧縮する"""
+        with Image.open(image_path) as img:
+            # 元の画像のアスペクト比を保持
+            width, height = img.size
+            if width > height:
+                if width > max_size:
+                    ratio = max_size / width
+                    new_size = (max_size, int(height * ratio))
+                    img = img.resize(new_size, Image.Resampling.LANCZOS)
+            else:
+                if height > max_size:
+                    ratio = max_size / height
+                    new_size = (int(width * ratio), max_size)
+                    img = img.resize(new_size, Image.Resampling.LANCZOS)
+            
+            # 圧縮した画像をバイトストリームに保存
+            buffer = io.BytesIO()
+            img.save(buffer, format=img.format if img.format else 'JPEG', quality=85)
+            return buffer.getvalue()
+
+    def encode_image(self, image_path):
+        """画像を圧縮してbase64エンコードする"""
+        compressed_image = self.compress_image(image_path)
+        return base64.b64encode(compressed_image).decode('utf-8')
+
+    def get_question_images(self, question_number):
+        """問題番号に関連する画像を取得"""
+        image_paths = []
+        base_patterns = [
+            f"images/{question_number}.jpg",
+            f"images/{question_number}.png",
+            f"images/{question_number}-*.jpg",
+            f"images/{question_number}-*.png"
+        ]
+        
+        for pattern in base_patterns:
+            image_paths.extend(glob.glob(pattern))
+        
+        return sorted(image_paths)
+
+    def setup_client(self, model_key: str):
+        """指定されたモデルのクライアントを設定"""
+        model_config = self.models[model_key]
+        if model_config["api_type"] == "anthropic":
+            return anthropic.Anthropic(api_key=model_config["api_key"])
+        else:
+            if model_config["base_url"]:
+                return OpenAI(
+                    api_key=model_config["api_key"],
+                    base_url=model_config["base_url"]
+                )
+            return OpenAI(api_key=model_config["api_key"])
+
+    def solve_question(self, question: dict, model_key: str, include_explanation: bool = False) -> dict:
+        """各問題をLLMで解く"""
+        client = self.setup_client(model_key)
+        model_config = self.models[model_key]
+        
+        system_prompt = """
+        あなたは医師国家試験の問題を解く専門家です。
+        与えられた問題に対して、最も適切な選択肢を選んでください。
+        以下のJSON形式で出力してください：
+
+        {
+            "answer": "選択肢のアルファベット（選択肢の中から）",
+            "confidence": 0.85,  # 0.0から1.0の間で解答の確信度を示す
+            "explanation": "解答の根拠を簡潔に説明"
+        }
+        """
+
+        if include_explanation:
+            system_prompt = """
+            あなたは医師国家試験の問題を解く専門家です。
+            与えられた問題に対して、最も適切な選択肢を選んでください。
+            以下のJSON形式で出力してください：
+
+            {
+                "answer": "選択肢のアルファベット（選択肢の中から）",
+                "confidence": 0.85,  # 0.0から1.0の間で解答の確信度を示す
+                "explanation": "解答の根拠を簡潔に説明"
+            }
+            """
+
+        # 問題文の構築
+        question_text = f"""問題：{question['question']}
+
+選択肢：
+{chr(10).join(question['choices'])}
+"""
+
+        try:
+            if model_config["api_type"] == "anthropic":
+                # Anthropic APIの場合
+                content = []
+                content.append({
+                    "type": "text",
+                    "text": question_text
+                })
+
+                if model_config["supports_vision"] and question.get("has_image", False):
+                    image_paths = self.get_question_images(question["number"])
+                    for i, image_path in enumerate(image_paths, 1):
+                        base64_image = self.encode_image(image_path)
+                        content.extend([
+                            {"type": "text", "text": f"画像{i}："},
+                            {
+                                "type": "image",
+                                "source": {
+                                    "type": "base64",
+                                    "media_type": "image/jpeg",
+                                    "data": base64_image
+                                }
+                            }
+                        ])
+
+                response = client.messages.create(
+                    model=model_config["model_name"],
+                    max_tokens=1000,
+                    temperature=0.3,
+                    system=system_prompt,
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": content
+                        }
+                    ]
+                )
+                result = json.loads(response.content[0].text)
+
+            else:
+                # OpenAI APIの場合
+                messages = [
+                    {"role": "system", "content": system_prompt}
+                ]
+
+                if model_config["supports_vision"] and question.get("has_image", False):
+                    content = [{"type": "text", "text": question_text}]
+                    image_paths = self.get_question_images(question["number"])
+                    for image_path in image_paths:
+                        base64_image = self.encode_image(image_path)
+                        content.append({
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/jpeg;base64,{base64_image}"
+                            }
+                        })
+                    messages.append({"role": "user", "content": content})
+                else:
+                    messages.append({"role": "user", "content": question_text})
+
+                response = client.chat.completions.create(
+                    model=model_config["model_name"],
+                    messages=messages,
+                    response_format={"type": "json_object"},
+                    temperature=0.3
+                )
+                result = json.loads(response.choices[0].message.content)
+
+            result["model_used"] = model_key
+            result["timestamp"] = datetime.now().isoformat()
+            return result
+
+        except Exception as e:
+            return {
+                "model_used": model_key,
+                "error": str(e),
+                "timestamp": datetime.now().isoformat()
+            }
+
+    def save_results(self, results: list, filename: str) -> None:
+        """結果をJSONファイルに保存"""
+        filepath = os.path.join('answer', filename)
+        with open(filepath, 'w', encoding='utf-8') as f:
+            json.dump({
+                "timestamp": datetime.now().isoformat(),
+                "results": results
+            }, f, ensure_ascii=False, indent=2)
+
+    def process_questions(self, questions: list, models: list[str] = None, include_explanation: bool = False) -> list:
+        """全ての問題を処理"""
+        if models is None:
+            models = list(self.models.keys())
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        results = []
+
+        for question in tqdm(questions, desc="問題を解析中"):
+            question_results = {
+                "question": question,
+                "answers": []
+            }
+
+            for model in tqdm(models, desc=f"問題 {question['number']} をモデルで解析中", leave=False):
+                try:
+                    answer = self.solve_question(question, model, include_explanation)
+                    question_results["answers"].append(answer)
+                except Exception as e:
+                    print(f"Error with model {model}: {str(e)}")
+                    question_results["answers"].append({
+                        "model_used": model,
+                        "error": str(e),
+                        "timestamp": datetime.now().isoformat()
+                    })
+
+            results.append(question_results)
+            
+            # 中間結果を保存
+            self.save_results(results, f"exam_results_{timestamp}_intermediate.json")
+
+        # 最終結果を保存
+        self.save_results(results, f"exam_results_{timestamp}_final.json")
+        return results
+
+def main():
+    parser = argparse.ArgumentParser(description='医師国家試験の問題を複数のLLMで解く')
+    parser.add_argument('input', help='入力JSONファイルのパス')
+    parser.add_argument('--models', nargs='+', 
+                      choices=['o1', 'gpt-4o', 'gemini', 'deepseek', 'claude'],
+                      default=['o1', 'gpt-4o', 'gemini', 'deepseek', 'claude'],
+                      help='使用するモデル（複数指定可）')
+    parser.add_argument('--explanation', action='store_true',
+                      help='解答の説明を含めるかどうか')
+    
+    args = parser.parse_args()
+    
+    try:
+        # 問題データの読み込み
+        with open(args.input, 'r', encoding='utf-8') as f:
+            questions = json.load(f)
+        
+        # 問題を解く
+        solver = MedicalExamSolver()
+        solver.process_questions(questions, args.models, args.explanation)
+        
+        print("処理が完了しました。")
+        
+    except Exception as e:
+        print(f"エラーが発生しました: {str(e)}")
+
+if __name__ == "__main__":
+    main() 

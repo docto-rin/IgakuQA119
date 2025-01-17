@@ -11,6 +11,24 @@ wheels = [
 ]
 
 [[package]]
+name = "anthropic"
+version = "0.43.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "anyio" },
+    { name = "distro" },
+    { name = "httpx" },
+    { name = "jiter" },
+    { name = "pydantic" },
+    { name = "sniffio" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/e1/0a/973d2ac6c9f7d1be41829c7b878cbe399385b25cc2ebe80ad0eec9999b8c/anthropic-0.43.0.tar.gz", hash = "sha256:06801f01d317a431d883230024318d48981758058bf7e079f33fb11f64b5a5c1", size = 194826 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d7/88/ded3ba979a2218a448cbc1a1e762d998b92f30529452c5104b35b6cb71f8/anthropic-0.43.0-py3-none-any.whl", hash = "sha256:f748a703f77b3244975e1aace3a935840dc653a4714fb6bba644f97cc76847b4", size = 207867 },
+]
+
+[[package]]
 name = "anyio"
 version = "4.8.0"
 source = { registry = "https://pypi.org/simple" }
@@ -386,9 +404,11 @@ name = "nmle-rta"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
+    { name = "anthropic" },
     { name = "azure-ai-formrecognizer" },
     { name = "openai" },
     { name = "pdf2image" },
+    { name = "pillow" },
     { name = "python-docx" },
     { name = "python-dotenv" },
     { name = "reportlab" },
@@ -398,9 +418,11 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
+    { name = "anthropic", specifier = ">=0.43.0" },
     { name = "azure-ai-formrecognizer", specifier = ">=3.3.3" },
     { name = "openai", specifier = ">=1.59.6" },
     { name = "pdf2image", specifier = ">=1.17.0" },
+    { name = "pillow", specifier = ">=11.1.0" },
     { name = "python-docx", specifier = ">=1.1.2" },
     { name = "python-dotenv", specifier = ">=1.0.1" },
     { name = "reportlab", specifier = ">=4.2.5" },

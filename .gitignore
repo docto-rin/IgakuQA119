@@ -12,6 +12,8 @@ wheels/
 # Environment variables
 .env
 
+# ruff
+.ruff_cache/
 # mac
 .DS_Store
 
@@ -22,3 +24,7 @@ output/
 data/
 answer/
 question/
+images/
+
+# ログ
+log/
