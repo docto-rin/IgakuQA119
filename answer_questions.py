@@ -25,35 +25,54 @@ class MedicalExamSolver:
                 "base_url": None,
                 "model_name": "o1",
                 "supports_vision": True,
-                "api_type": "openai"
+                "api_type": "openai",
+                "parameters": {
+                    "response_format": {"type": "json_object"}
+                }
             },
             "gpt-4o": {
                 "api_key": os.getenv("OPENAI_API_KEY"),
                 "base_url": None,
                 "model_name": "gpt-4o",
                 "supports_vision": True,
-                "api_type": "openai"
+                "api_type": "openai",
+                "parameters": {
+                    "temperature": 0.3,
+                    "response_format": {"type": "json_object"}
+                }
             },
             "gemini": {
                 "api_key": os.getenv("GEMINI_API_KEY"),
                 "base_url": "https://generativelanguage.googleapis.com/v1beta/",
                 "model_name": "gemini-2.0-flash-exp",
                 "supports_vision": True,
-                "api_type": "openai"
+                "api_type": "openai",
+                "parameters": {
+                    "temperature": 0.3,
+                    "response_format": {"type": "json_object"}
+                }
             },
             "deepseek": {
                 "api_key": os.getenv("DEEPSEEK_API_KEY"),
                 "base_url": "https://api.deepseek.com/v1",
                 "model_name": "deepseek-chat",
                 "supports_vision": False,
-                "api_type": "openai"
+                "api_type": "openai",
+                "parameters": {
+                    "temperature": 0.3,
+                    "response_format": {"type": "json_object"}
+                }
             },
             "claude": {
                 "api_key": os.getenv("ANTHROPIC_API_KEY"),
                 "base_url": None,
                 "model_name": "claude-3-5-sonnet-20241022",
                 "supports_vision": True,
-                "api_type": "anthropic"
+                "api_type": "anthropic",
+                "parameters": {
+                    "temperature": 0.3,
+                    "max_tokens": 1000
+                }
             }
         }
 
@@ -182,15 +201,14 @@ class MedicalExamSolver:
 
                 response = client.messages.create(
                     model=model_config["model_name"],
-                    max_tokens=1000,
-                    temperature=0.3,
-                    system=system_prompt,
                     messages=[
                         {
                             "role": "user",
                             "content": content
                         }
-                    ]
+                    ],
+                    system=system_prompt,
+                    **model_config["parameters"]
                 )
                 result = json.loads(response.content[0].text)
 
@@ -217,8 +235,7 @@ class MedicalExamSolver:
                 response = client.chat.completions.create(
                     model=model_config["model_name"],
                     messages=messages,
-                    response_format={"type": "json_object"},
-                    temperature=0.3
+                    **model_config["parameters"]
                 )
                 result = json.loads(response.choices[0].message.content)
 

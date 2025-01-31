@@ -12,6 +12,7 @@ from docx.shared import RGBColor
 from dotenv import load_dotenv
 from tqdm import tqdm
 import time
+import argparse
 
 # .envファイルから環境変数を読み込む
 load_dotenv()
@@ -236,15 +237,18 @@ def create_pdf_from_ocr(input_pdf, output_path):
 
 
 if __name__ == "__main__":
-    input_pdf = "data/118E.pdf"
-    output_dir = "output"
+    parser = argparse.ArgumentParser(description='PDFファイルからOCRを実行し、テキストを抽出します')
+    parser.add_argument('input_pdf', help='入力PDFファイルのパス')
+    parser.add_argument('--output_dir', default='output', help='出力ディレクトリのパス（デフォルト: output）')
+    
+    args = parser.parse_args()
 
     # 出力ディレクトリが存在しない場合は作成
-    os.makedirs(output_dir, exist_ok=True)
+    os.makedirs(args.output_dir, exist_ok=True)
 
     # 入力ファイル名から拡張子を除いたベース名を取得
-    base_name = os.path.splitext(os.path.basename(input_pdf))[0]
+    base_name = os.path.splitext(os.path.basename(args.input_pdf))[0]
 
     # 出力ファイル名を設定
-    output_filename = os.path.join(output_dir, f"{base_name}_output.pdf")
-    create_pdf_from_ocr(input_pdf, output_filename)
+    output_filename = os.path.join(args.output_dir, f"{base_name}_output.pdf")
+    create_pdf_from_ocr(args.input_pdf, output_filename)
