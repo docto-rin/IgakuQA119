@@ -49,19 +49,20 @@ def analyze_pdf(pdf_path):
 
             # ポーリング状態を監視
             print("処理中...")
-            pbar = tqdm(total=100, desc="OCR処理")
-            last_progress = 0
+            progress = tqdm(total=100, desc="OCR処理")
             while not poller.done():
-                time.sleep(2)
-                # 進捗を10%単位で更新
-                current_progress = (
-                    poller._polling_method._get_request_status().status.value / 3
-                ) * 100
-                progress_diff = int(current_progress) - last_progress
-                if progress_diff > 0:
-                    pbar.update(progress_diff)
-                    last_progress = int(current_progress)
-            pbar.close()
+                try:
+                    # 進捗状況の更新（簡略化）
+                    status = poller.status()
+                    if status == "running":
+                        progress.n = 50
+                    elif status == "succeeded":
+                        progress.n = 100
+                    progress.refresh()
+                except:
+                    pass
+                time.sleep(1)
+            progress.close()
             print("処理完了")
 
             result = poller.result()
@@ -235,7 +236,7 @@ def create_pdf_from_ocr(input_pdf, output_path):
 
 
 if __name__ == "__main__":
-    input_pdf = "data/118B.pdf"
+    input_pdf = "data/118E.pdf"
     output_dir = "output"
 
     # 出力ディレクトリが存在しない場合は作成

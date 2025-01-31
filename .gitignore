@@ -25,6 +25,8 @@ data/
 answer/
 question/
 images/
+cleaned/
+pdf/
 
 # ログ
 log/

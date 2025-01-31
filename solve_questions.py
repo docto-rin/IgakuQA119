@@ -116,15 +116,22 @@ class MedicalExamSolver:
         client = self.setup_client(model_key)
         model_config = self.models[model_key]
         
+        # 画像情報を取得
+        has_images = question.get("has_image", False)
+        image_count = 0
+        if has_images:
+            image_paths = self.get_question_images(question["number"])
+            image_count = len(image_paths)
+
         system_prompt = """
         あなたは医師国家試験の問題を解く専門家です。
         与えられた問題に対して、最も適切な選択肢を選んでください。
+        また複数回答がある場合は abc スペース区切りなしの文字列で出力してください。
         以下のJSON形式で出力してください：
 
         {
             "answer": "選択肢のアルファベット（選択肢の中から）",
             "confidence": 0.85,  # 0.0から1.0の間で解答の確信度を示す
-            "explanation": "解答の根拠を簡潔に説明"
         }
         """
 
@@ -132,6 +139,7 @@ class MedicalExamSolver:
             system_prompt = """
             あなたは医師国家試験の問題を解く専門家です。
             与えられた問題に対して、最も適切な選択肢を選んでください。
+            また複数回答がある場合は abc スペース区切りなしの文字列で出力してください。
             以下のJSON形式で出力してください：
 
             {
@@ -157,8 +165,7 @@ class MedicalExamSolver:
                     "text": question_text
                 })
 
-                if model_config["supports_vision"] and question.get("has_image", False):
-                    image_paths = self.get_question_images(question["number"])
+                if model_config["supports_vision"] and has_images:
                     for i, image_path in enumerate(image_paths, 1):
                         base64_image = self.encode_image(image_path)
                         content.extend([
@@ -193,9 +200,8 @@ class MedicalExamSolver:
                     {"role": "system", "content": system_prompt}
                 ]
 
-                if model_config["supports_vision"] and question.get("has_image", False):
+                if model_config["supports_vision"] and has_images:
                     content = [{"type": "text", "text": question_text}]
-                    image_paths = self.get_question_images(question["number"])
                     for image_path in image_paths:
                         base64_image = self.encode_image(image_path)
                         content.append({
@@ -218,13 +224,21 @@ class MedicalExamSolver:
 
             result["model_used"] = model_key
             result["timestamp"] = datetime.now().isoformat()
+            result["image_info"] = {
+                "has_images": has_images,
+                "image_count": image_count
+            }
             return result
 
         except Exception as e:
             return {
                 "model_used": model_key,
                 "error": str(e),
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
+                "image_info": {
+                    "has_images": has_images,
+                    "image_count": image_count
+                }
             }
 
     def save_results(self, results: list, filename: str) -> None:
