@@ -55,7 +55,7 @@ class MedicalExamSolver:
             "deepseek": {
                 "api_key": os.getenv("DEEPSEEK_API_KEY"),
                 "base_url": "https://api.deepseek.com/v1",
-                "model_name": "deepseek-chat",
+                "model_name": "deepseek-reasoner",
                 "supports_vision": False,
                 "api_type": "openai",
                 "parameters": {
@@ -145,7 +145,7 @@ class MedicalExamSolver:
         system_prompt = """
         あなたは医師国家試験の問題を解く専門家です。
         与えられた問題に対して、最も適切な選択肢を選んでください。
-        また複数回答がある場合は abc スペース区切りなしの文字列で出力してください。
+        また複数回答がある場合は *abc* などスペース区切りなしの文字列で出力してください。
         以下のJSON形式で出力してください：
 
         {
@@ -158,7 +158,7 @@ class MedicalExamSolver:
             system_prompt = """
             あなたは医師国家試験の問題を解く専門家です。
             与えられた問題に対して、最も適切な選択肢を選んでください。
-            また複数回答がある場合は abc スペース区切りなしの文字列で出力してください。
+            また複数回答がある場合は *abc* などスペース区切りなしの文字列で出力してください。
             以下のJSON形式で出力してください：
 
             {

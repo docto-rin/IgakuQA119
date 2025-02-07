@@ -8,7 +8,7 @@
 - gpt-4o-2024-08-06: 問題解答(Vision含む)
 - claude-3-5-sonnet-20241022: 問題解答(Vision含む)
 - gemini-2.0-flash-exp: 問題解答(Vision含む)
-- DeepSeek-V3: 問題解答(Visionなし)
+- DeepSeek-R1: 問題解答(Visionなし)
 
 
 ## ディレクトリ構造
