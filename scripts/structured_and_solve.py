@@ -1,3 +1,10 @@
+"""
+このスクリプトは医師国家試験の問題を分割して解くためのものです
+LLMに問題の整形もさせようとしました
+ただしLLMに問題の整形をさせると、問題の内容が変わってしまう可能性がある
+また正しく整形できないパターンが多いので本番では使用しない
+"""
+
 import json
 from openai import OpenAI
 import os
@@ -5,8 +12,10 @@ from datetime import datetime
 from dotenv import load_dotenv
 from tqdm import tqdm
 
+
 # .envファイルを読み込む
 load_dotenv()
+
 
 class MedicalExamProcessor:
     def __init__(self, split_model: str = "gpt-4o"):
@@ -71,7 +80,7 @@ class MedicalExamProcessor:
 
         # 問題文の構築
         full_question = f"問題：{question['question_text']}\n\n選択肢：\n"
-        for choice in question.get('answer_choices', []):
+        for choice in question.get("answer_choices", []):
             full_question += f"{choice}\n"
 
         try:
@@ -93,7 +102,7 @@ class MedicalExamProcessor:
             return {
                 "model_used": self.model,
                 "error": str(e),
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
 
     def split_questions_by_page(self, text: str) -> list[dict]:
@@ -104,15 +113,15 @@ class MedicalExamProcessor:
         pages = text.split("=== Page")
         if len(pages) == 1:  # === Page がない場合は === で分割を試みる
             pages = text.split("===")
-        
+
         all_questions = []
-        
+
         for i, page in enumerate(pages):
             if not page.strip():  # 空のページはスキップ
                 continue
-                
+
             print(f"\nページ {i} の処理中...")
-            
+
             try:
                 # 各ページの問題を分割
                 page_questions = self.split_questions_single_page(page.strip())
@@ -121,11 +130,13 @@ class MedicalExamProcessor:
             except Exception as e:
                 print(f"ページ {i} の処理中にエラーが発生: {str(e)}")
                 # エラーが発生したページの内容を保存
-                error_file = f"error_page_{i}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+                error_file = (
+                    f"error_page_{i}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+                )
                 with open(error_file, "w", encoding="utf-8") as f:
                     f.write(page)
                 print(f"エラーページの内容を {error_file} に保存しました")
-        
+
         return all_questions
 
     def split_questions_single_page(self, text: str) -> list[dict]:
@@ -169,12 +180,12 @@ class MedicalExamProcessor:
                 ],
                 response_format={"type": "json_object"},
             )
-            
+
             content = response.choices[0].message.content
             print(f"\n=== {self.model} APIレスポンス ===")
             print(content)
             print("==================\n")
-            
+
             result = json.loads(content)
             if isinstance(result, dict):
                 if "questions" in result:
@@ -232,14 +243,14 @@ class MedicalExamProcessor:
                     {"role": "user", "content": text},
                 ],
                 response_format={"type": "json_object"},
-                temperature=0.0
+                temperature=0.0,
             )
-            
+
             content = response.choices[0].message.content
             print(f"\n=== {self.model} APIレスポンス ===")
             print(content)
             print("==================\n")
-            
+
             result = json.loads(content)
             if isinstance(result, dict) and "questions" in result:
                 questions = result["questions"]
@@ -263,12 +274,12 @@ class MedicalExamProcessor:
         テキスト全体を一度に処理し、結果を保存する
         """
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        
+
         try:
             # 問題の分割（ペキスト全体を一度に処理）
             print("問題を分割中...")
             questions = self.split_questions_whole_text(text)
-            
+
             # 分割結果を保存
             with open(f"questions_whole_{timestamp}.json", "w", encoding="utf-8") as f:
                 json.dump(questions, f, ensure_ascii=False, indent=2)
@@ -283,7 +294,11 @@ class MedicalExamProcessor:
                 }
 
                 # 各モデルで解答
-                for model in tqdm(models, desc=f"問題 {question['question_number']} をモデルで解析中", leave=False):
+                for model in tqdm(
+                    models,
+                    desc=f"問題 {question['question_number']} をモデルで解析中",
+                    leave=False,
+                ):
                     try:
                         self.setup_client(model)
                         answer = self.solve_question(question)
@@ -291,11 +306,13 @@ class MedicalExamProcessor:
                     except Exception as e:
                         error_msg = f"Error with model {model} for question {question['question_number']}: {str(e)}"
                         print(error_msg)
-                        question_results["answers"].append({
-                            "model_used": model,
-                            "error": error_msg,
-                            "timestamp": datetime.now().isoformat()
-                        })
+                        question_results["answers"].append(
+                            {
+                                "model_used": model,
+                                "error": error_msg,
+                                "timestamp": datetime.now().isoformat(),
+                            }
+                        )
 
                 results.append(question_results)
                 # 各問題が終わるごとに中間結果を保存
@@ -312,11 +329,11 @@ class MedicalExamProcessor:
                 )
 
             print(f"最終結果を保存しました: {output_file}")
-            
+
         except Exception as e:
             print(f"エラーが発生しました: {str(e)}")
             # エラーが発生した場合でも、それまでの結果は保存
-            if 'results' in locals():
+            if "results" in locals():
                 self.save_intermediate_results(results, f"whole_{timestamp}_error")
             raise
 
@@ -331,4 +348,6 @@ if __name__ == "__main__":
         exam_text = f.read()
 
     # 全体テキストとして処理を実行（3つのモデルで解答）
-    processor.process_exam_whole_text(exam_text, models=["gpt-4o", "deepseek", "gemini"])
+    processor.process_exam_whole_text(
+        exam_text, models=["gpt-4o", "deepseek", "gemini"]
+    )

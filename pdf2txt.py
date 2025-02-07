@@ -237,10 +237,16 @@ def create_pdf_from_ocr(input_pdf, output_path):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='PDFファイルからOCRを実行し、テキストを抽出します')
-    parser.add_argument('input_pdf', help='入力PDFファイルのパス')
-    parser.add_argument('--output_dir', default='output', help='出力ディレクトリのパス（デフォルト: output）')
-    
+    parser = argparse.ArgumentParser(
+        description="PDFファイルからOCRを実行し、テキストを抽出します"
+    )
+    parser.add_argument("input_pdf", help="入力PDFファイルのパス")
+    parser.add_argument(
+        "--output_dir",
+        default="output",
+        help="出力ディレクトリのパス（デフォルト: output）",
+    )
+
     args = parser.parse_args()
 
     # 出力ディレクトリが存在しない場合は作成
