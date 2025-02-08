@@ -16,7 +16,8 @@ def process_json_file(file_path):
         row = {
             'question_number': result['question_number'],
             'question_text': result['question_text'],
-            'choices': ' | '.join(result['choices']) if result['choices'] else ''
+            'choices': ' | '.join(result['choices']) if result['choices'] else '',
+            'has_image': result.get('has_image', False)
         }
         
         # 各モデルの回答とexplanationを追加
