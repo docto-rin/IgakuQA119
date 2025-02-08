@@ -52,7 +52,7 @@ class MedicalExamSolver:
             "gemini": {
                 "api_key": os.getenv("GEMINI_API_KEY"),
                 "base_url": "https://generativelanguage.googleapis.com/v1beta/",
-                "model_name": "gemini-2.0-flash-001",
+                "model_name": "gemini-2.0-flash-lite-preview-02-05",
                 "supports_vision": True,
                 "api_type": "openai",
                 "parameters": {
