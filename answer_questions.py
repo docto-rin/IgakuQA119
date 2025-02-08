@@ -36,7 +36,7 @@ class MedicalExamSolver:
                 "supports_vision": True,
                 "api_type": "openai",
                 "parameters": {
-                    "temperature": 0.3,
+                    "temperature": 0.2,
                     "response_format": {"type": "json_object"},
                 },
             },
@@ -56,7 +56,7 @@ class MedicalExamSolver:
                 "supports_vision": True,
                 "api_type": "openai",
                 "parameters": {
-                    "temperature": 0.3,
+                    "temperature": 0.2,
                     "response_format": {"type": "json_object"},
                 },
             },
@@ -67,7 +67,7 @@ class MedicalExamSolver:
                 "supports_vision": False,
                 "api_type": "openai",
                 "parameters": {
-                    "temperature": 0.3,
+                    "temperature": 0.2,
                     "response_format": {"type": "json_object"},
                 },
             },
@@ -77,7 +77,7 @@ class MedicalExamSolver:
                 "model_name": "claude-3-5-sonnet-20241022",
                 "supports_vision": True,
                 "api_type": "anthropic",
-                "parameters": {"temperature": 0.3, "max_tokens": 1000},
+                "parameters": {"temperature": 0.2, "max_tokens": 1000},
             },
         }
 
@@ -155,29 +155,35 @@ class MedicalExamSolver:
                     image_count = len(image_paths)
 
                 system_prompt = """
-                あなたは医師国家試験の問題を解く専門家です。
-                与えられた問題に対して、最も適切な選択肢を選んでください。
-                また複数回答がある場合は ac などスペース区切りなしの文字列で出力してください。
-                以下のJSON形式で出力してください：
+                あなたは医師国家試験の問題を解く専門家です。与えられた問題に対して、最も適切な選択肢を選んでください。
 
-                {
-                    "answer": "選択肢のアルファベット（選択肢の中から）",
-                    "confidence": 0.85,  # 0.0から1.0の間で解答の確信度を示す
-                }
+以下のルールに従って回答してください：
+1. 問題文に「2つ選べ」などの指示がない限り、必ず1つだけ選択してください
+2. 問題文で複数選択が指示されている場合のみ、複数の選択肢を選んでください
+3. 複数選択の場合は、選択肢をアルファベット順に並べて出力してください（例：ac, ce）
+4. 必ず以下のJSON形式で出力してください：
+
+{
+    "answer": "選択肢のアルファベット（選択肢の中から）",
+    "confidence": 0.85
+}
                 """
 
                 if include_explanation:
                     system_prompt = """
-                    あなたは医師国家試験の問題を解く専門家です。
-                    与えられた問題に対して、最も適切な選択肢を選んでください。
-                    また複数回答がある場合は ac などスペース区切りなしの文字列で出力してください。
-                    以下のJSON形式で出力してください：
+                    あなたは医師国家試験の問題を解く専門家です。与えられた問題に対して、最も適切な選択肢を選んでください。
 
-                    {
-                        "answer": "選択肢のアルファベット（選択肢の中から）",
-                        "confidence": 0.85,  # 0.0から1.0の間で解答の確信度を示す
-                        "explanation": "解答の根拠を簡潔に説明"
-                    }
+以下のルールに従って回答してください：
+1. 問題文に「2つ選べ」などの指示がない限り、必ず1つだけ選択してください
+2. 問題文で複数選択が指示されている場合のみ、複数の選択肢を選んでください
+3. 複数選択の場合は、選択肢をアルファベット順に並べて出力してください（例：ac, ce）
+4. 必ず以下のJSON形式で出力してください：
+
+{
+    "answer": "選択肢のアルファベット（選択肢の中から）",
+    "confidence": 0.85,
+    "explanation": "解答の根拠を簡潔に説明"
+}
                     """
 
                 # 問題文の構築
@@ -212,16 +218,35 @@ class MedicalExamSolver:
                     # システムプロンプトを修正
                     system_prompt_claude = """あなたは医師国家試験の問題を解く専門家です。
 与えられた問題に対して、最も適切な選択肢を選んでください。
-また複数回答がある場合は ac などスペース区切りなしの文字列で出力してください。
 
-回答は以下のJSON形式で出力してください。解説は含めないでください："""
+以下のルールに従って回答してください：
+1. 問題文に「2つ選べ」などの指示がない限り、必ず1つだけ選択してください
+2. 問題文で複数選択が指示されている場合のみ、複数の選択肢を選んでください
+3. 複数選択の場合は、選択肢をアルファベット順に並べて出力してください（例：ac, ce）
+
+回答は必ず以下のJSON形式で出力してください。それ以外の説明は一切不要です：
+
+{
+    "answer": "選択肢のアルファベット",
+    "confidence": 0.95
+}"""
 
                     if include_explanation:
-                        system_prompt_claude += """
-{"answer": "選択肢のアルファベット", "confidence": 0.95, "explanation": "解答の根拠を簡潔に説明"}"""
-                    else:
-                        system_prompt_claude += """
-{"answer": "選択肢のアルファベット", "confidence": 0.95}"""
+                        system_prompt_claude = """あなたは医師国家試験の問題を解く専門家です。
+与えられた問題に対して、最も適切な選択肢を選んでください。
+
+以下のルールに従って回答してください：
+1. 問題文に「2つ選べ」などの指示がない限り、必ず1つだけ選択してください
+2. 問題文で複数選択が指示されている場合のみ、複数の選択肢を選んでください
+3. 複数選択の場合は、選択肢をアルファベット順に並べて出力してください（例：ac, ce）
+
+回答は必ず以下のJSON形式で出力してください。それ以外の説明は一切不要です：
+
+{
+    "answer": "選択肢のアルファベット",
+    "confidence": 0.95,
+    "explanation": "解答の根拠を簡潔に説明"
+}"""
 
                     response = client.messages.create(
                         model=model_config["model_name"],
@@ -415,6 +440,35 @@ explanation: [解答の根拠を簡潔に説明]"""
                 indent=2,
             )
 
+    def save_raw_results(self, results: list, model_name: str, timestamp: str) -> None:
+        """生のテキスト結果を保存"""
+        filepath = os.path.join("answer", f"raw_results_{model_name}_{timestamp}.txt")
+        with open(filepath, "w", encoding="utf-8") as f:
+            for result in results:
+                question = result["question"]
+                answers = result["answers"]
+                
+                # 問題情報を書き出し
+                f.write(f"=== 問題 {question['number']} ===\n")
+                f.write(f"問題文：{question['question']}\n")
+                f.write("選択肢：\n")
+                for choice in question["choices"]:
+                    f.write(f"{choice}\n")
+                f.write("\n")
+                
+                # モデルの回答を書き出し
+                for answer in answers:
+                    if answer["model_used"] == model_name:
+                        if "error" in answer:
+                            f.write(f"エラー：{answer['error']}\n")
+                        else:
+                            f.write(f"回答：{answer.get('answer', 'N/A')}\n")
+                            f.write(f"確信度：{answer.get('confidence', 'N/A')}\n")
+                            if "explanation" in answer:
+                                f.write(f"説明：{answer['explanation']}\n")
+                        f.write(f"タイムスタンプ：{answer['timestamp']}\n")
+                f.write("\n" + "="*50 + "\n\n")
+
     def process_questions(
         self,
         questions: list,
@@ -427,6 +481,10 @@ explanation: [解答の根拠を簡潔に説明]"""
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         results = []
+        failed_models = {}  # モデルごとの失敗回数を追跡
+        
+        # Deepseekのみ特別な処理を行う
+        has_deepseek = "deepseek" in models
 
         for question in tqdm(questions, desc="問題を解析中"):
             question_results = {"question": question, "answers": []}
@@ -438,11 +496,18 @@ explanation: [解答の根拠を簡潔に説明]"""
                     answer = self.solve_question(question, model, include_explanation)
                     question_results["answers"].append(answer)
                 except Exception as e:
-                    print(f"Error with model {model}: {str(e)}")
+                    error_msg = str(e)
+                    print(f"Error with model {model}: {error_msg}")
+                    # 失敗したモデルをカウント
+                    if model not in failed_models:
+                        failed_models[model] = {"count": 0, "last_error": None}
+                    failed_models[model]["count"] += 1
+                    failed_models[model]["last_error"] = error_msg
+                    
                     question_results["answers"].append(
                         {
                             "model_used": model,
-                            "error": str(e),
+                            "error": error_msg,
                             "timestamp": datetime.now().isoformat(),
                         }
                     )
@@ -451,6 +516,17 @@ explanation: [解答の根拠を簡潔に説明]"""
 
             # 中間結果を保存
             self.save_results(results, f"exam_results_{timestamp}_intermediate.json")
+            # Deepseekが含まれている場合のみ、raw形式でも保存
+            if has_deepseek:
+                self.save_raw_results(results, "deepseek", timestamp)
+
+        # 失敗したモデルの情報を表示
+        if failed_models:
+            print("\n=== 失敗したモデルの情報 ===")
+            for model, info in failed_models.items():
+                print(f"\nモデル: {model}")
+                print(f"失敗回数: {info['count']}")
+                print(f"最後のエラー: {info['last_error']}")
 
         # 最終結果を保存
         self.save_results(results, f"exam_results_{timestamp}_final.json")
