@@ -46,12 +46,13 @@ class MedicalExamSolver:
                 "model_name": "o3-mini",
                 "supports_vision": False,
                 "api_type": "openai",
-                "parameters": {"response_format": {"type": "json_object"}},
+                "parameters": {"response_format": {"type": "json_object"},
+                               "reasoning_effort": "high"},
             },
             "gemini": {
                 "api_key": os.getenv("GEMINI_API_KEY"),
                 "base_url": "https://generativelanguage.googleapis.com/v1beta/",
-                "model_name": "gemini-2.0-flash-exp",
+                "model_name": "gemini-2.0-flash-001",
                 "supports_vision": True,
                 "api_type": "openai",
                 "parameters": {
@@ -279,9 +280,7 @@ explanation: [解答の根拠を簡潔に説明]"""
                         try:
                             confidence = float(line.split(":", 1)[1].strip())
                         except ValueError:
-                            print(
-                                f"Warning: Could not parse confidence value from: {line}"
-                            )
+                            print(f"Warning: Could not parse confidence value from: {line}")
                     elif include_explanation and line.startswith("explanation:"):
                         explanation = line.split(":", 1)[1].strip()
 
