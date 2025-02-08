@@ -183,7 +183,7 @@ def split_question_and_choices(
         return text.strip(), []
 
 
-def split_questions(text: str, input_file: str, start: int = 1, end: int = 50) -> str:
+def split_questions(text: str, input_file: str, start: int = 1, end: int = 75) -> str:
     clean_text = re.sub(r"=== Page \d+ ===\n", "", text)
     formatted = ""
     shared_text = {}  # 連問で共有するテキストを保存

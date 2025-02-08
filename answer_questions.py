@@ -138,112 +138,122 @@ class MedicalExamSolver:
         self, question: dict, model_key: str, include_explanation: bool = False
     ) -> dict:
         """各問題をLLMで解く"""
-        client = self.setup_client(model_key)
-        model_config = self.models[model_key]
+        max_retries = 3
+        retry_count = 0
+        last_error = None
 
-        # 画像情報を取得
-        has_images = question.get("has_image", False)
-        image_count = 0
-        if has_images:
-            image_paths = self.get_question_images(question["number"])
-            image_count = len(image_paths)
+        while retry_count < max_retries:
+            try:
+                client = self.setup_client(model_key)
+                model_config = self.models[model_key]
 
-        system_prompt = """
-        あなたは医師国家試験の問題を解く専門家です。
-        与えられた問題に対して、最も適切な選択肢を選んでください。
-        また複数回答がある場合は ac などスペース区切りなしの文字列で出力してください。
-        以下のJSON形式で出力してください：
+                # 画像情報を取得
+                has_images = question.get("has_image", False)
+                image_count = 0
+                if has_images:
+                    image_paths = self.get_question_images(question["number"])
+                    image_count = len(image_paths)
 
-        {
-            "answer": "選択肢のアルファベット（選択肢の中から）",
-            "confidence": 0.85,  # 0.0から1.0の間で解答の確信度を示す
-        }
-        """
+                system_prompt = """
+                あなたは医師国家試験の問題を解く専門家です。
+                与えられた問題に対して、最も適切な選択肢を選んでください。
+                また複数回答がある場合は ac などスペース区切りなしの文字列で出力してください。
+                以下のJSON形式で出力してください：
 
-        if include_explanation:
-            system_prompt = """
-            あなたは医師国家試験の問題を解く専門家です。
-            与えられた問題に対して、最も適切な選択肢を選んでください。
-            また複数回答がある場合は ac などスペース区切りなしの文字列で出力してください。
-            以下のJSON形式で出力してください：
+                {
+                    "answer": "選択肢のアルファベット（選択肢の中から）",
+                    "confidence": 0.85,  # 0.0から1.0の間で解答の確信度を示す
+                }
+                """
 
-            {
-                "answer": "選択肢のアルファベット（選択肢の中から）",
-                "confidence": 0.85,  # 0.0から1.0の間で解答の確信度を示す
-                "explanation": "解答の根拠を簡潔に説明"
-            }
-            """
+                if include_explanation:
+                    system_prompt = """
+                    あなたは医師国家試験の問題を解く専門家です。
+                    与えられた問題に対して、最も適切な選択肢を選んでください。
+                    また複数回答がある場合は ac などスペース区切りなしの文字列で出力してください。
+                    以下のJSON形式で出力してください：
 
-        # 問題文の構築
-        question_text = f"""問題：{question["question"]}
+                    {
+                        "answer": "選択肢のアルファベット（選択肢の中から）",
+                        "confidence": 0.85,  # 0.0から1.0の間で解答の確信度を示す
+                        "explanation": "解答の根拠を簡潔に説明"
+                    }
+                    """
+
+                # 問題文の構築
+                question_text = f"""問題：{question["question"]}
 
 選択肢：
 {chr(10).join(question["choices"])}
 """
 
-        try:
-            if model_config["api_type"] == "anthropic":
-                # Anthropic APIの場合
-                content = []
-                content.append({"type": "text", "text": question_text})
+                if model_config["api_type"] == "anthropic":
+                    # Anthropic APIの場合
+                    content = []
+                    content.append({"type": "text", "text": question_text})
 
-                if model_config["supports_vision"] and has_images:
-                    for i, image_path in enumerate(image_paths, 1):
-                        base64_image = self.encode_image(image_path)
-                        content.extend(
-                            [
-                                {"type": "text", "text": f"画像{i}："},
-                                {
-                                    "type": "image",
-                                    "source": {
-                                        "type": "base64",
-                                        "media_type": "image/jpeg",
-                                        "data": base64_image,
+                    if model_config["supports_vision"] and has_images:
+                        for i, image_path in enumerate(image_paths, 1):
+                            base64_image = self.encode_image(image_path)
+                            content.extend(
+                                [
+                                    {"type": "text", "text": f"画像{i}："},
+                                    {
+                                        "type": "image",
+                                        "source": {
+                                            "type": "base64",
+                                            "media_type": "image/jpeg",
+                                            "data": base64_image,
+                                        },
                                     },
-                                },
-                            ]
-                        )
+                                ]
+                            )
 
-                # システムプロンプトを修正
-                system_prompt_claude = """あなたは医師国家試験の問題を解く専門家です。
+                    # システムプロンプトを修正
+                    system_prompt_claude = """あなたは医師国家試験の問題を解く専門家です。
 与えられた問題に対して、最も適切な選択肢を選んでください。
 また複数回答がある場合は ac などスペース区切りなしの文字列で出力してください。
 
 回答は以下のJSON形式で出力してください。解説は含めないでください："""
 
-                if include_explanation:
-                    system_prompt_claude += """
+                    if include_explanation:
+                        system_prompt_claude += """
 {"answer": "選択肢のアルファベット", "confidence": 0.95, "explanation": "解答の根拠を簡潔に説明"}"""
-                else:
-                    system_prompt_claude += """
+                    else:
+                        system_prompt_claude += """
 {"answer": "選択肢のアルファベット", "confidence": 0.95}"""
 
-                response = client.messages.create(
-                    model=model_config["model_name"],
-                    messages=[{"role": "user", "content": content}],
-                    system=system_prompt_claude,
-                    **model_config["parameters"],
-                )
+                    response = client.messages.create(
+                        model=model_config["model_name"],
+                        messages=[{"role": "user", "content": content}],
+                        system=system_prompt_claude,
+                        **model_config["parameters"],
+                    )
 
-                # レスポンスから最初の有効なJSONを抽出
-                content = response.content[0].text.strip()
-                try:
-                    # 最初の{から最後の}までを抽出
-                    json_start = content.find("{")
-                    json_end = content.rfind("}") + 1
-                    if json_start >= 0 and json_end > json_start:
-                        json_str = content[json_start:json_end]
-                        result = json.loads(json_str)
-                    else:
-                        raise ValueError("No JSON object found in response")
-                except json.JSONDecodeError as e:
-                    print(f"JSON parse error: {str(e)}")
-                    print(f"Raw content: {content}")
-                    raise
+                    # レスポンスから最初の有効なJSONを抽出
+                    content = response.content[0].text.strip()
+                    try:
+                        # 最初の{から最後の}までを抽出
+                        json_start = content.find("{")
+                        json_end = content.rfind("}") + 1
+                        if json_start >= 0 and json_end > json_start:
+                            json_str = content[json_start:json_end]
+                            result = json.loads(json_str)
+                        else:
+                            raise ValueError("No JSON object found in response")
+                    except (json.JSONDecodeError, ValueError) as e:
+                        print(f"試行 {retry_count + 1}/{max_retries} でJSONパースエラー: {str(e)}")
+                        print(f"Raw content: {content}")
+                        last_error = e
+                        retry_count += 1
+                        if retry_count < max_retries:
+                            print("再試行中...")
+                            continue
+                        raise
 
-            elif model_key == "deepseek":
-                # DeepSeek APIの場合
-                deepseek_prompt = """あなたは医師国家試験の問題を解く専門家です。
+                elif model_key == "deepseek":
+                    # DeepSeek APIの場合
+                    deepseek_prompt = """あなたは医師国家試験の問題を解く専門家です。
 与えられた問題に対して、最も適切な選択肢を選んでください。
 また複数回答がある場合は ac などスペース区切りなしの文字列で出力してください。
 
@@ -252,88 +262,147 @@ class MedicalExamSolver:
 answer: [選択したアルファベット]
 confidence: [0.0から1.0の確信度]"""
 
-                if include_explanation:
-                    deepseek_prompt += """
+                    if include_explanation:
+                        deepseek_prompt += """
 explanation: [解答の根拠を簡潔に説明]"""
 
-                response = client.chat.completions.create(
-                    model=model_config["model_name"],
-                    messages=[
-                        {"role": "system", "content": deepseek_prompt},
-                        {"role": "user", "content": question_text},
-                    ],
-                )
+                    response = client.chat.completions.create(
+                        model=model_config["model_name"],
+                        messages=[
+                            {"role": "system", "content": deepseek_prompt},
+                            {"role": "user", "content": question_text},
+                        ],
+                    )
 
-                # 回答をパース
-                content = response.choices[0].message.content.strip()
+                    # 回答をパース
+                    content = response.choices[0].message.content.strip()
 
-                # DeepSeekの出力を構造化
-                answer = None
-                confidence = 0.5
-                explanation = None
+                    # DeepSeekの出力を構造化
+                    answer = None
+                    confidence = 0.5
+                    explanation = None
 
-                for line in content.split("\n"):
-                    line = line.strip().lower()
-                    if line.startswith("answer:"):
-                        answer = line.split(":", 1)[1].strip()
-                    elif line.startswith("confidence:"):
-                        try:
-                            confidence = float(line.split(":", 1)[1].strip())
-                        except ValueError:
-                            print(f"Warning: Could not parse confidence value from: {line}")
-                    elif include_explanation and line.startswith("explanation:"):
-                        explanation = line.split(":", 1)[1].strip()
+                    for line in content.split("\n"):
+                        line = line.strip().lower()
+                        if line.startswith("answer:"):
+                            answer = line.split(":", 1)[1].strip()
+                        elif line.startswith("confidence:"):
+                            try:
+                                confidence = float(line.split(":", 1)[1].strip())
+                            except ValueError:
+                                print(f"Warning: Could not parse confidence value from: {line}")
+                        elif include_explanation and line.startswith("explanation:"):
+                            explanation = line.split(":", 1)[1].strip()
 
-                result = {
-                    "answer": answer if answer else content,
-                    "confidence": confidence,
-                }
+                    result = {
+                        "answer": answer if answer else content,
+                        "confidence": confidence,
+                    }
 
-                if include_explanation and explanation:
-                    result["explanation"] = explanation
+                    if include_explanation and explanation:
+                        result["explanation"] = explanation
 
-            else:
-                # OpenAI APIの場合
-                messages = [{"role": "system", "content": system_prompt}]
-
-                if model_config["supports_vision"] and has_images:
-                    content = [{"type": "text", "text": question_text}]
-                    for image_path in image_paths:
-                        base64_image = self.encode_image(image_path)
-                        content.append(
-                            {
-                                "type": "image_url",
-                                "image_url": {
-                                    "url": f"data:image/jpeg;base64,{base64_image}"
-                                },
-                            }
-                        )
-                    messages.append({"role": "user", "content": content})
                 else:
-                    messages.append({"role": "user", "content": question_text})
+                    # OpenAI APIの場合
+                    messages = [{"role": "system", "content": system_prompt}]
+
+                    if model_config["supports_vision"] and has_images:
+                        content = [{"type": "text", "text": question_text}]
+                        for image_path in image_paths:
+                            base64_image = self.encode_image(image_path)
+                            content.append(
+                                {
+                                    "type": "image_url",
+                                    "image_url": {
+                                        "url": f"data:image/jpeg;base64,{base64_image}"
+                                    },
+                                }
+                            )
+                        messages.append({"role": "user", "content": content})
+                    else:
+                        messages.append({"role": "user", "content": question_text})
 
                 response = client.chat.completions.create(
                     model=model_config["model_name"],
                     messages=messages,
                     **model_config["parameters"],
                 )
-                result = json.loads(response.choices[0].message.content)
 
-            result["model_used"] = model_key
-            result["timestamp"] = datetime.now().isoformat()
-            result["image_info"] = {
-                "has_images": has_images,
-                "image_count": image_count,
-            }
-            return result
+                # レスポンスの処理
+                if model_config["api_type"] == "anthropic":
+                    content = response.content[0].text.strip()
+                    try:
+                        json_start = content.find("{")
+                        json_end = content.rfind("}") + 1
+                        if json_start >= 0 and json_end > json_start:
+                            json_str = content[json_start:json_end]
+                            result = json.loads(json_str)
+                        else:
+                            raise ValueError("No JSON object found in response")
+                    except (json.JSONDecodeError, ValueError) as e:
+                        print(f"試行 {retry_count + 1}/{max_retries} でJSONパースエラー: {str(e)}")
+                        print(f"Raw content: {content}")
+                        last_error = e
+                        retry_count += 1
+                        if retry_count < max_retries:
+                            print("再試行中...")
+                            continue
+                        raise
 
-        except Exception as e:
-            return {
-                "model_used": model_key,
-                "error": str(e),
-                "timestamp": datetime.now().isoformat(),
-                "image_info": {"has_images": has_images, "image_count": image_count},
-            }
+                elif model_key == "deepseek":
+                    try:
+                        # DeepSeekの処理
+                        # ... existing code ...
+                        result = {
+                            "answer": answer if answer else content,
+                            "confidence": confidence,
+                        }
+                        if include_explanation and explanation:
+                            result["explanation"] = explanation
+                    except Exception as e:
+                        print(f"試行 {retry_count + 1}/{max_retries} でエラー: {str(e)}")
+                        last_error = e
+                        retry_count += 1
+                        if retry_count < max_retries:
+                            print("再試行中...")
+                            continue
+                        raise
+
+                else:  # OpenAI APIの場合
+                    try:
+                        result = json.loads(response.choices[0].message.content)
+                    except (json.JSONDecodeError, AttributeError) as e:
+                        print(f"試行 {retry_count + 1}/{max_retries} でJSONパースエラー: {str(e)}")
+                        last_error = e
+                        retry_count += 1
+                        if retry_count < max_retries:
+                            print("再試行中...")
+                            continue
+                        raise
+
+                # 成功した場合は結果を返す
+                result["model_used"] = model_key
+                result["timestamp"] = datetime.now().isoformat()
+                result["image_info"] = {
+                    "has_images": has_images,
+                    "image_count": image_count,
+                }
+                return result
+
+            except Exception as e:
+                last_error = e
+                retry_count += 1
+                if retry_count < max_retries:
+                    print(f"試行 {retry_count}/{max_retries} で失敗。再試行中...")
+                    continue
+                
+                # 全ての試行が失敗した場合
+                return {
+                    "model_used": model_key,
+                    "error": f"全ての試行が失敗しました（{max_retries}回）: {str(last_error)}",
+                    "timestamp": datetime.now().isoformat(),
+                    "image_info": {"has_images": has_images, "image_count": image_count},
+                }
 
     def save_results(self, results: list, filename: str) -> None:
         """結果をJSONファイルに保存"""

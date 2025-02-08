@@ -25,13 +25,20 @@ def process_json_file(file_path):
         # 画像の有無を追加
         row['has_image'] = result['question']['has_image']
         
-        # 各モデルの回答を追加
+        # 各モデルの回答とexplanationを追加
         model_answers = {model: '' for model in model_names}
+        model_explanations = {f"{model}-explanation": '' for model in model_names}
+        
         for answer in result['answers']:
-            if 'model_used' in answer and 'answer' in answer:
-                model_answers[answer['model_used']] = answer['answer']
+            if 'model_used' in answer:
+                model = answer['model_used']
+                if 'answer' in answer:
+                    model_answers[model] = answer['answer']
+                if 'explanation' in answer:
+                    model_explanations[f"{model}-explanation"] = answer['explanation']
         
         row.update(model_answers)
+        row.update(model_explanations)
         rows.append(row)
     
     return pd.DataFrame(rows)
