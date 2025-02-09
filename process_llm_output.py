@@ -100,6 +100,7 @@ class OutputProcessor:
                 "question_number": result["question"]["number"],
                 "question_text": result["question"]["question"],
                 "choices": result["question"]["choices"],
+                "has_image": result["question"].get("has_image", False),
                 "answers": []
             }
             
