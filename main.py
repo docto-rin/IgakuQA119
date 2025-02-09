@@ -5,8 +5,7 @@ from llm_solver import LLMSolver
 def main():
     parser = argparse.ArgumentParser(description="医師国家試験の問題をLLMで解く")
     parser.add_argument(
-        "--input", 
-        default="question/119A_json.json",
+        "input_json",
         help="入力JSONファイルのパス"
     )
     parser.add_argument(
@@ -21,7 +20,7 @@ def main():
 
     try:
         # 問題データの読み込み
-        with open(args.input, "r", encoding="utf-8") as f:
+        with open(args.input_json, "r", encoding="utf-8") as f:
             questions = json.load(f)
 
         # ソルバーを初期化

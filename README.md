@@ -8,6 +8,16 @@
 > もともとは `answer_questions.py` を使用していましたが、出力の不安定さが課題となったため、  
 > `main.py`、`llm_solver.py`、`process_llm_output.py` を追加し、解答生成の機能をこれらに置き換えました。
 
+## 使用モデル
+2025-02-08現在、以下のモデルを使用しています。
+
+- o1-2024-12-17: 問題解答(Vision含む)
+- gpt-4o-2024-08-06: 問題解答(Vision含む)
+- o3-mini: 問題解答(Visionなし)
+- claude-3-5-sonnet-20241022: 問題解答(Vision含む)
+- gemini-2.0-flash: 問題解答(Vision含む)
+- DeepSeek-R1: 問題解答(Visionなし)
+
 ## 更新情報
 - 2025-02-08-14:05: 119Aの解答結果を追加(gpt-4oのみ)
 - 2025-02-08-15:10: deepseek, claudeの出力不安定のため別コード追記
@@ -16,6 +26,7 @@
 - 2025-02-08-21:15: 119Cの解答結果を追加(全てのモデル)
 - 2025-02-09-13:40: 119Dの解答結果を追加(gpt-4oのみ)
 - 2025-02-09-14:30: 119Dの解答結果を追加(全てのモデル)
+- 2025-02-09-17:00: 119Eの解答結果を追加(全てのモデル)
 
 
 ## ディレクトリ構成
@@ -159,9 +170,8 @@ python txt2json.py output/118B_cleaned.txt output/118B_questions.json
 
 例：
 ```bash
-uv run main.py --input question/119A_json.json --models claude o1 gpt-4o
+uv run main.py question/119A_json.json --models claude o1 gpt-4o
 ```
-- `--input` で JSON 形式の問題ファイルを指定します。  
 - `--models` で使用するモデルを必要に応じて指定（複数指定可能、デフォルトは全モデル）。
 
 実行後、解答結果は `answer/json/` 内にタイムスタンプ付きの JSON ファイルとして保存され、詳細な出力（生の出力や各モデル別のテキストファイル）は `answer/raw/` に保存されます。
