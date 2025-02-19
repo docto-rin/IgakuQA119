@@ -1,4 +1,3 @@
-
 # NMLE-RTA (National Medical License Examination - Real Time Analysis)
 
 医師国家試験の問題をOCR処理し、複数のAIモデル（LLM）を使用して解答を生成するシステムです。  
@@ -16,7 +15,7 @@
 - o3-mini: 問題解答(Visionなし)
 - claude-3-5-sonnet-20241022: 問題解答(Vision含む)
 - gemini-2.0-flash: 問題解答(Vision含む)
-- DeepSeek-R1: 問題解答(Visionなし)
+- DeepSeek-R1 (Azure AI Model Inference): 問題解答(Visionなし)
 
 ## 更新情報
 - 2025-02-08-14:05: 119Aの解答結果を追加(gpt-4oのみ)

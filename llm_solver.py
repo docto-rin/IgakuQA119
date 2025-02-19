@@ -64,8 +64,8 @@ explanation: [回答の理由を簡潔に]"""
             },
             "deepseek": {
                 "api_key": os.getenv("DEEPSEEK_API_KEY"),
-                "base_url": "https://api.deepseek.com",
-                "model_name": "deepseek-reasoner",
+                "base_url": os.getenv("DEEPSEEK_ENDPOINT"),
+                "model_name": "DeepSeek-R1",
                 "client_type": "openai",
                 "supports_vision": False,
                 "system_prompt": self.system_prompt,
