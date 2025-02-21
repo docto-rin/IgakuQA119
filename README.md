@@ -170,9 +170,19 @@ python txt2json.py output/118B_cleaned.txt output/118B_questions.json
 
 例：
 ```bash
+# 全ての問題を特定のモデルで解く
 uv run main.py question/119A_json.json --models claude o1 gpt-4o
+
+# 特定の問題のみを解く
+uv run main.py question/119A_json.json --questions 119A1 119A2
+
+# 特定の問題を特定のモデルで解く
+uv run main.py question/119A_json.json --questions 119A1 --models claude gpt-4o
 ```
-- `--models` で使用するモデルを必要に応じて指定（複数指定可能、デフォルトは全モデル）。
+
+オプション：
+- `--models`: 使用するモデルを指定（複数指定可能、デフォルトは全モデル）
+- `--questions`: 解く問題番号を指定（複数指定可能、指定しない場合は全ての問題を解く）
 
 実行後、解答結果は `answer/json/` 内にタイムスタンプ付きの JSON ファイルとして保存され、詳細な出力（生の出力や各モデル別のテキストファイル）は `answer/raw/` に保存されます。
 
