@@ -62,6 +62,15 @@ explanation: [回答の理由を簡潔に]"""
                 "system_prompt": self.system_prompt,
                 "parameters": {}
             },
+            "gemini-2.5-pro": {
+                "api_key": os.getenv("GEMINI_API_KEY"),
+                "base_url": "https://generativelanguage.googleapis.com/v1beta/",
+                "model_name": "gemini-2.5-pro-exp-03-25",
+                "client_type": "openai",
+                "supports_vision": True,
+                "system_prompt": self.system_prompt,
+                "parameters": {}
+            },            
             "deepseek": {
                 "api_key": os.getenv("DEEPSEEK_API_KEY"),
                 "base_url": os.getenv("DEEPSEEK_ENDPOINT"),
@@ -81,11 +90,31 @@ explanation: [回答の理由を簡潔に]"""
                     "temperature": 0.2,
                     "max_tokens": 1000
                 }
+            },
+            # 柔軟なGeminiモデル指定のためのエントリー
+            "gemini-flexible": {
+                "api_key": os.getenv("GEMINI_API_KEY"),
+                "base_url": "https://generativelanguage.googleapis.com/v1beta/",
+                "model_name": None,  # 実際の使用時に動的に設定される
+                "client_type": "openai",
+                "supports_vision": True,
+                "system_prompt": self.system_prompt,
+                "parameters": {}
             }
         }
 
     def get_client(self, model_key: str):
         """モデルに応じたクライアントを返す"""
+        # モデルキーが直接定義されていない場合の処理
+        if model_key not in self.models:
+            if model_key.startswith("gemini-"):
+                # gemini-で始まるモデル名の場合、柔軟なGeminiの設定をコピーして使用
+                config = self.models["gemini-flexible"].copy()
+                config["model_name"] = model_key  # 指定されたモデル名をそのまま使用
+                return OpenAI(api_key=config["api_key"], base_url=config["base_url"])
+            else:
+                raise ValueError(f"未定義のモデルキーです: {model_key}")
+                
         config = self.models[model_key]
         
         if config["client_type"] == "anthropic":
@@ -97,7 +126,17 @@ explanation: [回答の理由を簡潔に]"""
 
     def solve_question(self, question: Dict, model_key: str) -> Dict:
         """1つの問題を解く"""
-        config = self.models[model_key]
+        # モデルキーが直接定義されていない場合の処理
+        if model_key not in self.models:
+            if model_key.startswith("gemini-"):
+                # gemini-で始まるモデル名の場合、柔軟なGeminiの設定をコピーして使用
+                config = self.models["gemini-flexible"].copy()
+                config["model_name"] = model_key  # 指定されたモデル名をそのまま使用
+            else:
+                raise ValueError(f"未定義のモデルキーです: {model_key}")
+        else:
+            config = self.models[model_key]
+            
         client = self.get_client(model_key)
 
         # 問題文を構築
@@ -172,13 +211,14 @@ explanation: [回答の理由を簡潔に]"""
                 "timestamp": datetime.now().isoformat()
             }
 
-    def process_questions(self, questions: List[Dict], models: Optional[List[str]] = None) -> List[Dict]:
+    def process_questions(self, questions: List[Dict], models: Optional[List[str]] = None, file_exp: Optional[str] = None) -> List[Dict]:
         """全ての問題を処理"""
         if models is None:
             models = list(self.models.keys())
 
         results = []
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        if file_exp is None:
+            file_exp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
         # 進捗バーを追加
         for question in tqdm(questions, desc="問題を処理中"):
@@ -195,7 +235,7 @@ explanation: [回答の理由を簡潔に]"""
             
             # 問題ごとに同じファイルに追記形式で保存
             try:
-                self.output_processor.process_outputs(results, timestamp)
+                self.output_processor.process_outputs(results, file_exp)
                 print(f"問題 {question['number']} の結果を保存しました")
             except Exception as e:
                 print(f"結果の保存中にエラーが発生: {str(e)}")
@@ -220,4 +260,4 @@ explanation: [回答の理由を簡潔に]"""
     def encode_image(self, image_path):
         """画像をbase64エンコード"""
         with open(image_path, "rb") as f:
-            return base64.b64encode(f.read()).decode("utf-8") 
+            return base64.b64encode(f.read()).decode("utf-8")

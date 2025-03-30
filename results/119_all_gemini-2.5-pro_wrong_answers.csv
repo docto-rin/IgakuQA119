@@ -1,0 +1,10 @@
+question_number,model,model_answer,correct_answer,is_correct,confidence,block
+119A19,gemini-2.5-pro,b,d,False,1.0,A
+119A75,gemini-2.5-pro,+600,600,False,1.0,A
+119B29,gemini-2.5-pro,b,e,False,0.9,B
+119B45,gemini-2.5-pro,d,e,False,1.0,B
+119D16,gemini-2.5-pro,d,a,False,1.0,D
+119D59,gemini-2.5-pro,c,d,False,0.9,D
+119F47,gemini-2.5-pro,b,c,False,1.0,F
+119F67,gemini-2.5-pro,ae,ce,False,0.8,F
+119F71,gemini-2.5-pro,d,e,False,0.9,F
