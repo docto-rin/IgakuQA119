@@ -6,33 +6,26 @@ def main():
     parser = argparse.ArgumentParser(description="医師国家試験の問題をLLMで解く")
     parser.add_argument(
         "input_json",
-        help="入力JSONファイルのパス"
+        help="入力JSONファイルのパス (例: question/119A_json.json)"
     )
     parser.add_argument(
         "--models",
         nargs="+",
-        default=["o1", "gpt-4o", "o3-mini", "gemini", "gemini-2.5-pro", "deepseek", "claude"],
-        help="使用するモデル（複数指定可）。o1, gpt-4o, o3-mini, gemini, gemini-2.5-pro, deepseek, claude、または gemini- で始まる任意のモデル名を指定できます。"
+        required=True,
+        help="使用するモデル（複数指定可） (例: gpt-4o claude gemini-2.5-pro)"
     )
     parser.add_argument(
         "--questions",
         nargs="+",
-        help="解く問題の番号（例：119A1 119A2）。指定しない場合は全ての問題を解きます。"
+        help="解く問題の番号。指定しない場合は全ての問題を解きます (例: 119A1 119A2)"
     )
     parser.add_argument(
         "--exp",
         default=None,
-        help="結果ファイルの識別子。指定しない場合はタイムスタンプが使用されます。"
+        help="結果ファイルの識別子。指定しない場合はタイムスタンプが使用されます (例: baseline)"
     )
     
     args = parser.parse_args()
-
-    # モデル名の検証
-    standard_models = ["o1", "gpt-4o", "o3-mini", "gemini", "gemini-2.5-pro", "deepseek", "claude"]
-    for model in args.models:
-        if model not in standard_models and not model.startswith("gemini-"):
-            print(f"警告: '{model}' は未知のモデルです。o1, gpt-4o, o3-mini, gemini, gemini-2.5-pro, deepseek, claude、または gemini- で始まるモデル名を指定してください。")
-            return
 
     try:
         # 問題データの読み込み

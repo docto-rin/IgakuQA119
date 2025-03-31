@@ -1,5 +1,5 @@
 import os
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 import anthropic
 from openai import OpenAI
 from datetime import datetime
@@ -70,7 +70,16 @@ explanation: [回答の理由を簡潔に]"""
                 "supports_vision": True,
                 "system_prompt": self.system_prompt,
                 "parameters": {}
-            },            
+            },
+            "gemma-3": {
+                "api_key": os.getenv("GEMINI_API_KEY"),
+                "base_url": "https://generativelanguage.googleapis.com/v1beta/",
+                "model_name": "gemma-3-27b-it",
+                "client_type": "openai",
+                "supports_vision": False,
+                "system_prompt": self.system_prompt,
+                "parameters": {}
+            },     
             "deepseek": {
                 "api_key": os.getenv("DEEPSEEK_API_KEY"),
                 "base_url": os.getenv("DEEPSEEK_ENDPOINT"),
@@ -100,44 +109,63 @@ explanation: [回答の理由を簡潔に]"""
                 "supports_vision": True,
                 "system_prompt": self.system_prompt,
                 "parameters": {}
+            },
+            # 柔軟なOllamaモデル指定のためのエントリー
+            "ollama-flexible": {
+                "api_key": "ollama",  # ダミーのAPIキー（実際は使われません）
+                "base_url": "http://localhost:11434/v1",  # Ollama APIサーバのURL。環境に合わせて変更
+                "model_name": None,  # 実際の使用時に動的に設定される
+                "client_type": "openai",
+                "supports_vision": False,
+                "system_prompt": self.system_prompt,
+                "parameters": {}
             }
         }
 
-    def get_client(self, model_key: str):
-        """モデルに応じたクライアントを返す"""
+    def get_config_and_client(self, model_key: str):
+        # ハードコーディングされたモデルキーの場合
+        if model_key in self.models:
+            config = self.models[model_key]
+            # もしクライアントタイプが "anthropic" ならAnthropicクライアントを使用
+            if config["client_type"] == "anthropic":
+                return config, anthropic.Anthropic(api_key=config["api_key"])
+            # それ以外の場合はOpenAIクライアントを使用
+            else:
+                if "base_url" in config:
+                    return config, OpenAI(api_key=config["api_key"], base_url=config["base_url"])
+                return config, OpenAI(api_key=config["api_key"])
+
         # モデルキーが直接定義されていない場合の処理
-        if model_key not in self.models:
+        else:
+            # もしモデルキーが "gemini-" で始まるならgemini-flexibleを使用
             if model_key.startswith("gemini-"):
-                # gemini-で始まるモデル名の場合、柔軟なGeminiの設定をコピーして使用
                 config = self.models["gemini-flexible"].copy()
-                config["model_name"] = model_key  # 指定されたモデル名をそのまま使用
-                return OpenAI(api_key=config["api_key"], base_url=config["base_url"])
+                config["model_name"] = model_key
+                return config, OpenAI(api_key=config["api_key"], base_url=config["base_url"])
+            # もしモデルキーが "ollama-" で始まるならollama-flexibleを使用
+            elif model_key.startswith("ollama-"):
+                config = self.models["ollama-flexible"].copy()
+                # "ollama-"以降の文字列を真のモデル名として設定
+                config["model_name"] = model_key.split("ollama-", 1)[1]
+                return config, OpenAI(api_key=config["api_key"], base_url=config["base_url"])
+            # hf.co/ で始まる場合の対応（直接URL指定）
+            elif model_key.startswith("huggingface.co/"):
+                config = self.models["ollama-flexible"].copy()
+                # モデル名にフルURLを渡す
+                config["model_name"] = model_key
+                return config, OpenAI(api_key=config["api_key"], base_url=config["base_url"])
             else:
                 raise ValueError(f"未定義のモデルキーです: {model_key}")
-                
-        config = self.models[model_key]
-        
-        if config["client_type"] == "anthropic":
-            return anthropic.Anthropic(api_key=config["api_key"])
-        else:
-            if "base_url" in config:
-                return OpenAI(api_key=config["api_key"], base_url=config["base_url"])
-            return OpenAI(api_key=config["api_key"])
 
     def solve_question(self, question: Dict, model_key: str) -> Dict:
         """1つの問題を解く"""
-        # モデルキーが直接定義されていない場合の処理
-        if model_key not in self.models:
-            if model_key.startswith("gemini-"):
-                # gemini-で始まるモデル名の場合、柔軟なGeminiの設定をコピーして使用
-                config = self.models["gemini-flexible"].copy()
-                config["model_name"] = model_key  # 指定されたモデル名をそのまま使用
-            else:
-                raise ValueError(f"未定義のモデルキーです: {model_key}")
+        config, client = self.get_config_and_client(model_key)
+        allow_system_prompt = config["model_name"] != "gemma-3-27b-it"  # gemma-3-27b-itはシステムプロンプトを使用しない
+        # print(f"allow_system_prompt: {allow_system_prompt}")
+        if allow_system_prompt:
+            system_role = "system"
         else:
-            config = self.models[model_key]
-            
-        client = self.get_client(model_key)
+            system_role = "user"
 
         # 問題文を構築
         prompt = f"""問題：{question['question']}
@@ -159,7 +187,7 @@ explanation: [回答の理由を簡潔に]"""
             else:
                 # OpenAI APIの呼び出しを修正
                 messages = [
-                    {"role": "system", "content": config["system_prompt"]},
+                    {"role": system_role, "content": config["system_prompt"]},
                     {"role": "user", "content": prompt}
                 ]
 
@@ -176,7 +204,7 @@ explanation: [回答の理由を簡潔に]"""
                             }
                         })
                     messages = [
-                        {"role": "system", "content": config["system_prompt"]},
+                        {"role": system_role, "content": config["system_prompt"]},
                         {"role": "user", "content": content}
                     ]
 
@@ -192,14 +220,29 @@ explanation: [回答の理由を簡潔に]"""
             print(raw_response)
             
             # 応答を構造化データに変換
-            parsed_response = self.output_processor.format_model_response(raw_response)
-            
+            formatted_response, success = self.output_processor.format_model_response(raw_response)
+
+            # 解析が失敗した場合にポストプロセスを実施
+            num_attempts = 0
+            max_attempts = 3
+            while not success and num_attempts < max_attempts:
+                print("ポストプロセスを開始します。")
+                fixed_response = self.perform_postprocessing(raw_response, config, client)
+                formatted_response, success = self.output_processor.format_model_response(fixed_response)
+                num_attempts += 1
+                print(f"ポストプロセス試行回数: {num_attempts}")
+                if success:
+                    print("ポストプロセス成功")
+                    print(f"ポストプロセス後の応答: {fixed_response}")
+                else:
+                    print("ポストプロセス失敗")
+
             return {
                 "model_used": model_key,
                 "raw_response": raw_response,
-                "answer": parsed_response["answer"],
-                "confidence": parsed_response["confidence"],
-                "explanation": parsed_response["explanation"],
+                "answer": formatted_response["answer"],
+                "confidence": formatted_response["confidence"],
+                "explanation": formatted_response["explanation"],
                 "timestamp": datetime.now().isoformat()
             }
 
@@ -261,3 +304,44 @@ explanation: [回答の理由を簡潔に]"""
         """画像をbase64エンコード"""
         with open(image_path, "rb") as f:
             return base64.b64encode(f.read()).decode("utf-8")
+
+    def perform_postprocessing(self, raw_response: str, config: Dict[str, Any], client) -> str:
+        """
+        モデルに対してシステムプロンプトを再提示し、
+        応答を指定フォーマットに従って再整形させる（ポストプロセス）。
+
+        :param raw_response: モデルの初回の未整形応答
+        :param config: モデル設定やシステムプロンプトを含む辞書
+        :param client: APIを呼び出すためのクライアントインスタンス
+        :return: モデルが再整形したテキスト応答（fixed_response）
+        """
+        system_prompt = config["system_prompt"]
+
+        retry_prompt = f"""
+    以下の「整形前の応答」を、「整形方法の指示」にて指定された形式に厳密に整形してください。
+    【整形前の応答】
+    {raw_response}
+    
+    【整形方法の指示】
+    {system_prompt}
+    """
+
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": retry_prompt}
+        ]
+
+        try:
+            response = client.chat.completions.create(
+                model=config["model_name"],
+                messages=messages,
+                **config["parameters"]
+            )
+
+            fixed_response = response.choices[0].message.content
+            return fixed_response
+
+        except Exception as e:
+            print(f"ポストプロセス中に例外が発生しました: {e}")
+            return ""
+

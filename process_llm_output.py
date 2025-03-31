@@ -1,7 +1,7 @@
 import json
 import os
 from datetime import datetime
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 
 class OutputProcessor:
     def __init__(self):
@@ -10,21 +10,25 @@ class OutputProcessor:
         os.makedirs("answer/raw", exist_ok=True)
         os.makedirs("answer/json", exist_ok=True)
 
-    def format_model_response(self, response: str) -> Dict[str, Any]:
-        """モデルの生の応答をパースして構造化データに変換"""
+    def format_model_response(self, response: str) -> Tuple[Dict[str, Any], bool]:
+        """
+        モデルの生の応答をパースして構造化データに変換し、
+        解析が成功したかどうかをboolで返す。
+        """
         result = {
             "answer": None,
             "confidence": None,
             "explanation": None
         }
         
-        # 応答が空または無効な場合のチェック
+        success = True  # 解析が成功したかのフラグ
+        
+        # 応答が空または無効な場合
         if not response or not isinstance(response, str):
             print(f"警告: 無効な応答を受け取りました: {response}")
-            return result
+            return result, False
         
         try:
-            # 応答テキストを行ごとに処理
             lines = response.lower().split('\n')
             for line in lines:
                 line = line.strip()
@@ -38,17 +42,18 @@ class OutputProcessor:
                         print(f"警告: 確信度の変換に失敗: {line}")
                 elif line.startswith('explanation:'):
                     result['explanation'] = line.replace('explanation:', '').strip()
-                
-            # 必須フィールドのチェック
+                    
+            # 必須フィールド（answer）がなければ失敗と判断
             if not result['answer']:
                 print("警告: 回答が見つかりませんでした")
-            
-            return result
-            
+                success = False
+                
         except Exception as e:
-            print(f"応答のパース中にエラーが発生: {str(e)}")
-            print(f"問題の応答: {response}")
-            return result
+            print(f"例外発生: 応答解析中にエラー: {e}")
+            success = False
+        
+        return result, success
+
 
     def save_model_output(self, results: List[Dict], model_name: str, file_exp: str) -> None:
         """モデルごとの出力を読みやすい形式でテキストファイルに保存"""
