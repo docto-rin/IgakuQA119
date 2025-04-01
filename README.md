@@ -232,3 +232,6 @@ uv run main.py question/119A_json.json --questions 119A1 --models claude gpt-4o
 - OCR 結果は必ず人手で確認・修正してください。  
 - API キーは `.env` ファイルで管理し、リポジトリにコミットしないよう注意してください。  
 - 新規追加された `main.py`、`llm_solver.py`、`process_llm_output.py` の挙動に合わせ、出力内容やエラー出力を適宜確認してください。
+
+## ライセンス
+このリポジトリは Apache License 2.0 のもとで公開されています。詳細は LICENSE ファイルをご確認ください。
