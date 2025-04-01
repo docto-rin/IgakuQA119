@@ -1,7 +1,7 @@
 [project]
-name = "nmle-rta"
+name = "IgakuQA119"
 version = "0.1.0"
-description = "Add your description here"
+description = "IgakuQA119 is a repository designed to evaluate the performance of Large Language Models (LLMs) using the 119th Japanese Medical Licensing Examination (JMLE). "
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
