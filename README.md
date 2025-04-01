@@ -2,9 +2,9 @@
 
 ## Overview
 
-IgakuQA119 is a repository designed to evaluate the performance of Large Language Models (LLMs) using the 119th Japanese Medical Licensing Examination (JMLE). This project is inspired by the [nmle-rta](https://github.com/iKora128/nmle-rta/tree/main) repository and aims to assess LLMs' comprehension and application abilities in the context of the latest medical licensing exam.
+IgakuQA119 is a repository designed to evaluate the performance of Large Language Models (LLMs) using the 119th Japanese Medical Licensing Examination (JMLE). This project, inspired by the [nmle-rta](https://github.com/iKora128/nmle-rta/tree/main) repository, assesses LLMs' comprehension and application abilities within the context of Japan's latest medical licensing exam.
 
-**Note**: This project requires Python 3.10 or higher.
+**Note**: Requires Python 3.10 or higher.
 
 ## Setup Instructions
 
@@ -19,16 +19,16 @@ uv sync
 
 ### Setting Environment Variables
 
-Copy `.env.example` to `.env` and set the required API keys:
+Copy `.env.example` to `.env` and set required API keys:
 
 ```bash
 cp .env.example .env
-# Open .env in your editor and set the necessary values (e.g., API keys)
+# Open .env and set necessary values (e.g., API keys)
 ```
 
 ## Solving Questions with LLMs
 
-Here is an example of solving exam questions using an LLM:
+Example script to solve exam questions using an LLM:
 
 ```bash
 EXP="gemini-2.5-pro"
@@ -43,7 +43,7 @@ done
 
 ## Grading Answers
 
-Below is an example of how to grade the answers:
+Example script for grading answers:
 
 ```bash
 EXP="gemini-2.5-pro"
@@ -54,5 +54,6 @@ uv run grade_answers.py \
 
 ## License
 
-The original [nmle-rta](https://github.com/iKora128/nmle-rta/tree/main) repository does not specify a license. In the absence of a license, the default copyright laws apply, meaning the author retains all rights, and others may not reproduce, distribute, or create derivative works without explicit permission. Therefore, before using or distributing any content from this repository, please ensure you have obtained permission from the original author. For more information, refer to GitHub's documentation on [licensing a repository](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/licensing-a-repository).
+This repository is licensed under the Apache License 2.0. For details, see the [LICENSE](LICENSE) file.
 
+Original repository [nmle-rta](https://github.com/iKora128/nmle-rta/tree/main) is also licensed under Apache License 2.0 as authorized by the original author.
