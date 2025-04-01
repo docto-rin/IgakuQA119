@@ -49,10 +49,13 @@ def grade_answers(model_data, correct_df):
         is_correct = False
         
         if correct_answer is not None:
-            if question_number == '119E28':
-                is_correct = model_answer.lower() in ['a', 'c']
-            else:
-                is_correct = model_answer.lower() == correct_answer.lower()
+            try:
+                if question_number == '119E28':
+                    is_correct = model_answer.lower() in ['a', 'c']
+                else:
+                    is_correct = model_answer.lower() == correct_answer.lower()
+            except:
+                print(f"Error comparing answers for question {question_number}: {model_answer} vs {correct_answer}")
             if is_correct:
                 correct_count += 1
             total_questions += 1
