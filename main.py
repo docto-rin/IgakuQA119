@@ -1,6 +1,6 @@
 import json
 import argparse
-from llm_solver import LLMSolver
+from src.llm_solver import LLMSolver
 
 def main():
     parser = argparse.ArgumentParser(description="医師国家試験の問題をLLMで解く")

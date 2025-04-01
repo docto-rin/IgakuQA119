@@ -4,7 +4,7 @@ import anthropic
 from openai import OpenAI
 from datetime import datetime
 from dotenv import load_dotenv
-from process_llm_output import OutputProcessor
+from .process_llm_output import OutputProcessor
 from tqdm import tqdm
 import json
 import glob

@@ -27,5 +27,5 @@ cleaned/
 pdf/
 csv/
 
-# ログ
-log/
+# pyenv
+.python-version
