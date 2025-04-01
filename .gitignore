@@ -26,6 +26,8 @@ answer/
 cleaned/
 pdf/
 csv/
+results/
+!results/correct_answers.csv
 
 # pyenv
 .python-version
