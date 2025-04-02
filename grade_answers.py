@@ -112,10 +112,11 @@ def generate_report(results_df, accuracy, output_dir=None, prefix=""):
 
 def consolidate_results(all_results, all_accuracies):
     """複数ブロックの結果を統合する"""
+    import pandas as pd
     # 全ての結果を結合
     combined_df = pd.concat(all_results, ignore_index=True)
     
-    # ブロック情報を抽出（問題番号の最初の文字）
+    # 問題番号の4文字目（インデックス3）をブロックとして抽出
     combined_df['block'] = combined_df['question_number'].str[3]
     
     # 一般問題と必修問題を分類
@@ -126,56 +127,88 @@ def consolidate_results(all_results, all_accuracies):
     required_df = combined_df[combined_df['block'].isin(required_blocks)]
     
     # 画像なしの問題だけを抽出
-    no_image_df = combined_df[~combined_df['has_image']]
+    no_image_df = combined_df[~combined_df['has_image']].copy()
     no_image_general_df = no_image_df[no_image_df['block'].isin(general_blocks)]
     no_image_required_df = no_image_df[no_image_df['block'].isin(required_blocks)]
     
-    # データの検証とデバッグ情報
+    # デバッグ情報
     print(f"\n処理したブロック: {sorted(combined_df['block'].unique())}")
-    print(f"一般問題（A,C,D,F）データ件数: {len(general_df)}")
-    print(f"必修問題（B,E）データ件数: {len(required_df)}")
-    print(f"画像なしの問題データ件数: {len(no_image_df)}")
-    print(f"画像なしの一般問題データ件数: {len(no_image_general_df)}")
-    print(f"画像なしの必修問題データ件数: {len(no_image_required_df)}")
+    print(f"一般問題（A,C,D,F）件数: {len(general_df)}")
+    print(f"必修問題（B,E）件数: {len(required_df)}")
+    print(f"画像なし問題件数: {len(no_image_df)}")
     
-    # 点数の計算（一般問題:1点、必修問題:2点）
+    # ヘルパー関数: 必修問題の得点（前半:1点、後半:3点）
+    def required_point(question_number):
+        try:
+            num = int(question_number[4:])  # 例："119B17" → "17"
+        except:
+            num = 0
+        return 1 if num <= 25 else 3
+
+    # 各行の得点(score)と満点(possible)を計算する
+    def calculate_points(row):
+        block = row['block']
+        if block in required_blocks:
+            possible = required_point(row['question_number'])
+            score = possible if row['is_correct'] else 0
+        else:
+            possible = 1
+            score = 1 if row['is_correct'] else 0
+        return pd.Series({'score': score, 'possible': possible})
+
+    # 各行に対して得点と満点を計算
+    combined_df[['score', 'possible']] = combined_df.apply(calculate_points, axis=1)
+    
+    # ブロック別得点率（全体）
+    block_stats = combined_df.groupby('block').agg({'score': 'sum', 'possible': 'sum'}).reset_index()
+    block_stats['score_rate'] = block_stats['score'] / block_stats['possible']
+    block_score_rates = dict(zip(block_stats['block'], block_stats['score_rate']))
+
+    # 画像なしの問題について、得点率計算
+    no_image_df[['score', 'possible']] = no_image_df.apply(calculate_points, axis=1)
+    block_stats_no_image = no_image_df.groupby('block').agg({'score': 'sum', 'possible': 'sum'}).reset_index()
+    block_stats_no_image['score_rate'] = block_stats_no_image['score'] / block_stats_no_image['possible']
+    no_image_block_score_rates = dict(zip(block_stats_no_image['block'], block_stats_no_image['score_rate']))
+
+    # 画像なしのブロック別正答率を計算
+    no_image_block_accuracies = no_image_df.groupby('block')['is_correct'].mean().to_dict()
+    
+    # 点数計算（一般問題:1点固定、必修問題は得点変動）
     general_score = general_df['is_correct'].sum()
-    required_score = required_df['is_correct'].sum() * 2
-    
     general_total = len(general_df)
-    required_total = len(required_df) * 2
+    required_score = required_df.apply(
+        lambda row: required_point(row['question_number']) if row['is_correct'] else 0, axis=1
+    ).sum()
+    required_total = required_df.apply(
+        lambda row: required_point(row['question_number']), axis=1
+    ).sum()
     
     total_score = general_score + required_score
     total_possible = general_total + required_total
     
-    # 画像なしの問題に対する点数計算
+    # 画像なしの問題点数計算
     no_image_general_score = no_image_general_df['is_correct'].sum()
-    no_image_required_score = no_image_required_df['is_correct'].sum() * 2
-    
+    no_image_required_score = no_image_required_df.apply(
+        lambda row: required_point(row['question_number']) if row['is_correct'] else 0, axis=1
+    ).sum()
     no_image_general_total = len(no_image_general_df)
-    no_image_required_total = len(no_image_required_df) * 2
+    no_image_required_total = no_image_required_df.apply(
+        lambda row: required_point(row['question_number']), axis=1
+    ).sum()
     
     no_image_total_score = no_image_general_score + no_image_required_score
     no_image_total_possible = no_image_general_total + no_image_required_total
     
-    # 正答率の計算
+    # 正答率の計算（全てカウントベース）
     general_accuracy = general_df['is_correct'].mean() if len(general_df) > 0 else 0
     required_accuracy = required_df['is_correct'].mean() if len(required_df) > 0 else 0
     total_accuracy = combined_df['is_correct'].mean() if len(combined_df) > 0 else 0
-    
-    # 画像なしの問題に対する正答率計算
+
     no_image_general_accuracy = no_image_general_df['is_correct'].mean() if len(no_image_general_df) > 0 else 0
     no_image_required_accuracy = no_image_required_df['is_correct'].mean() if len(no_image_required_df) > 0 else 0
     no_image_total_accuracy = no_image_df['is_correct'].mean() if len(no_image_df) > 0 else 0
+
     
-    # ブロック別の画像なしの問題の正答率
-    no_image_block_accuracies = {}
-    for block in combined_df['block'].unique():
-        block_df = no_image_df[no_image_df['block'] == block]
-        if len(block_df) > 0:
-            no_image_block_accuracies[block] = block_df['is_correct'].mean()
-    
-    # 結果の統計を返す
     stats = {
         'total': {
             'df': combined_df,
@@ -183,7 +216,9 @@ def consolidate_results(all_results, all_accuracies):
             'total': len(combined_df),
             'accuracy': total_accuracy,
             'score': total_score,
-            'possible_score': total_possible
+            'possible_score': total_possible,
+            'score_rate': total_score / total_possible if total_possible > 0 else 0,
+            'block_score_rates': block_score_rates  # 全体のブロック別得点率
         },
         'general': {
             'df': general_df,
@@ -191,7 +226,8 @@ def consolidate_results(all_results, all_accuracies):
             'total': len(general_df),
             'accuracy': general_accuracy,
             'score': general_score,
-            'possible_score': general_total
+            'possible_score': general_total,
+            'score_rate': general_score / general_total if general_total > 0 else 0
         },
         'required': {
             'df': required_df,
@@ -199,10 +235,11 @@ def consolidate_results(all_results, all_accuracies):
             'total': len(required_df),
             'accuracy': required_accuracy,
             'score': required_score,
-            'possible_score': required_total
+            'possible_score': required_total,
+            'score_rate': required_score / required_total if required_total > 0 else 0
         },
-        'blocks': {block: acc for block, acc in all_accuracies.items()},
-        # 画像なしの問題の統計を追加
+        'block_accuracies': {block: acc for block, acc in all_accuracies.items()},
+        'block_score_rates': block_score_rates,
         'no_image': {
             'df': no_image_df,
             'correct': no_image_df['is_correct'].sum(),
@@ -210,13 +247,15 @@ def consolidate_results(all_results, all_accuracies):
             'accuracy': no_image_total_accuracy,
             'score': no_image_total_score,
             'possible_score': no_image_total_possible,
+            'score_rate': no_image_total_score / no_image_total_possible if no_image_total_possible > 0 else 0,
             'general': {
                 'df': no_image_general_df,
                 'correct': no_image_general_df['is_correct'].sum(),
                 'total': len(no_image_general_df),
                 'accuracy': no_image_general_accuracy,
                 'score': no_image_general_score,
-                'possible_score': no_image_general_total
+                'possible_score': no_image_general_total,
+                'score_rate': no_image_general_score / no_image_general_total if no_image_general_total > 0 else 0
             },
             'required': {
                 'df': no_image_required_df,
@@ -224,9 +263,12 @@ def consolidate_results(all_results, all_accuracies):
                 'total': len(no_image_required_df),
                 'accuracy': no_image_required_accuracy,
                 'score': no_image_required_score,
-                'possible_score': no_image_required_total
+                'possible_score': no_image_required_total,
+                'score_rate': no_image_required_score / no_image_required_total if no_image_required_total > 0 else 0
             },
-            'blocks': no_image_block_accuracies
+            # 画像なしのブロック別結果として、正答率と得点率の両方を保存
+            'block_accuracies': no_image_block_accuracies,
+            'block_score_rates': no_image_block_score_rates
         }
     }
     
@@ -234,113 +276,87 @@ def consolidate_results(all_results, all_accuracies):
 
 
 def generate_consolidated_report(stats, output_dir=None, prefix=""):
-    """統合された結果のレポートを生成する"""
+    """統合された結果のレポートを生成する（summaryテキストファイル出力付き、得点率と正答率を順序変更）"""
+    from pathlib import Path
+    summary_lines = []
+
     # 全体の結果
-    print("\n===== 全体の結果 =====")
-    print(f"合計点: {stats['total']['score']} / {stats['total']['possible_score']}")
-    print(f"全体の正答率: {stats['total']['accuracy']:.2%}")
-    print(f"正解数: {stats['total']['correct']} / {stats['total']['total']}")
-    
+    summary_lines.append("===== 全体の結果 =====")
+    summary_lines.append(f"正解数: {stats['total']['correct']} / {stats['total']['total']}")
+    summary_lines.append(f"正答率: {stats['total']['accuracy']:.2%}")
+    summary_lines.append(f"合計点: {stats['total']['score']} / {stats['total']['possible_score']}")
+    summary_lines.append(f"得点率: {stats['total']['score_rate']:.2%}")
+    summary_lines.append("")
+
     # 一般問題の結果
-    print("\n===== 一般問題 (A,C,D,F) =====")
-    print(f"点数: {stats['general']['score']} / {stats['general']['possible_score']}")
-    print(f"正答率: {stats['general']['accuracy']:.2%}")
-    print(f"正解数: {stats['general']['correct']} / {stats['general']['total']}")
-    
+    summary_lines.append("===== 一般問題 (A,C,D,F) =====")
+    summary_lines.append(f"正解数: {stats['general']['correct']} / {stats['general']['total']}")
+    summary_lines.append(f"正答率: {stats['general']['accuracy']:.2%}")
+    summary_lines.append(f"合計点: {stats['general']['score']} / {stats['general']['possible_score']}")
+    summary_lines.append(f"得点率: {stats['general']['score_rate']:.2%}")
+    summary_lines.append("")
+
     # 必修問題の結果
-    print("\n===== 必修問題 (B,E) =====")
-    print(f"点数: {stats['required']['score']} / {stats['required']['possible_score']}")
-    print(f"正答率: {stats['required']['accuracy']:.2%}")
-    print(f"正解数: {stats['required']['correct']} / {stats['required']['total']}")
+    summary_lines.append("===== 必修問題 (B,E) =====")
+    summary_lines.append(f"正解数: {stats['required']['correct']} / {stats['required']['total']}")
+    summary_lines.append(f"正答率: {stats['required']['accuracy']:.2%}")
+    summary_lines.append(f"合計点: {stats['required']['score']} / {stats['required']['possible_score']}")
+    summary_lines.append(f"得点率: {stats['required']['score_rate']:.2%}")
+    summary_lines.append("")
+
+    # ブロック別結果（全体）
+    summary_lines.append("===== ブロック別結果 =====")
+    for block in sorted(stats['block_accuracies'].keys()):
+        acc = stats['block_accuracies'][block]
+        sr = stats['block_score_rates'][block]
+        summary_lines.append(f"ブロック {block}: 正答率 {acc:.2%}, 得点率 {sr:.2%}")
+    summary_lines.append("")
+
+    # 画像なしの結果
+    summary_lines.append("===== 画像なしの問題の結果 =====")
+    summary_lines.append(f"正解数: {stats['no_image']['correct']} / {stats['no_image']['total']}")
+    summary_lines.append(f"正答率: {stats['no_image']['accuracy']:.2%}")
+    summary_lines.append(f"合計点: {stats['no_image']['score']} / {stats['no_image']['possible_score']}")
+    summary_lines.append(f"得点率: {stats['no_image']['score_rate']:.2%}")
+    summary_lines.append("")
+
+    # 画像なしの一般問題
+    summary_lines.append("===== 画像なしの一般問題 (A,C,D,F) =====")
+    summary_lines.append(f"正解数: {stats['no_image']['general']['correct']} / {stats['no_image']['general']['total']}")
+    summary_lines.append(f"正答率: {stats['no_image']['general']['accuracy']:.2%}")
+    summary_lines.append(f"合計点: {stats['no_image']['general']['score']} / {stats['no_image']['general']['possible_score']}")
+    summary_lines.append(f"得点率: {stats['no_image']['general']['score_rate']:.2%}")
+    summary_lines.append("")
+
+    # 画像なしの必修問題
+    summary_lines.append("===== 画像なしの必修問題 (B,E) =====")
+    summary_lines.append(f"正解数: {stats['no_image']['required']['correct']} / {stats['no_image']['required']['total']}")
+    summary_lines.append(f"正答率: {stats['no_image']['required']['accuracy']:.2%}")
+    summary_lines.append(f"合計点: {stats['no_image']['required']['score']} / {stats['no_image']['required']['possible_score']}")
+    summary_lines.append(f"得点率: {stats['no_image']['required']['score_rate']:.2%}")
+    summary_lines.append("")
+
+    # 画像なしのブロック別結果
+    summary_lines.append("===== 画像なしのブロック別結果 =====")
+    for block in sorted(stats['no_image']['block_accuracies'].keys()):
+        acc = stats['no_image']['block_accuracies'][block]
+        sr = stats['no_image']['block_score_rates'][block]
+        summary_lines.append(f"ブロック {block}: 正答率 {acc:.2%}, 得点率 {sr:.2%}")
     
-    # ブロック別の結果
-    print("\n===== ブロック別正答率 =====")
-    for block, accuracy in stats['blocks'].items():
-        print(f"ブロック {block}: {accuracy:.2%}")
-    
-    # 画像なしの問題の結果を追加
-    print("\n===== 画像なしの問題の結果 =====")
-    print(f"合計点: {stats['no_image']['score']} / {stats['no_image']['possible_score']}")
-    print(f"全体の正答率: {stats['no_image']['accuracy']:.2%}")
-    print(f"正解数: {stats['no_image']['correct']} / {stats['no_image']['total']}")
-    
-    print("\n===== 画像なしの一般問題 (A,C,D,F) =====")
-    print(f"点数: {stats['no_image']['general']['score']} / {stats['no_image']['general']['possible_score']}")
-    print(f"正答率: {stats['no_image']['general']['accuracy']:.2%}")
-    print(f"正解数: {stats['no_image']['general']['correct']} / {stats['no_image']['general']['total']}")
-    
-    print("\n===== 画像なしの必修問題 (B,E) =====")
-    print(f"点数: {stats['no_image']['required']['score']} / {stats['no_image']['required']['possible_score']}")
-    print(f"正答率: {stats['no_image']['required']['accuracy']:.2%}")
-    print(f"正解数: {stats['no_image']['required']['correct']} / {stats['no_image']['required']['total']}")
-    
-    print("\n===== 画像なしのブロック別正答率 =====")
-    for block, accuracy in stats['no_image']['blocks'].items():
-        print(f"ブロック {block}: {accuracy:.2%}")
-    
-    # 結果をファイルに保存
+    # 連結して1つの文字列にまとめる
+    summary = "\n".join(summary_lines)
+
+    # コンソール出力
+    print(summary)
+
+    # ファイルに保存
     if output_dir:
         output_path = Path(output_dir)
         output_path.mkdir(exist_ok=True, parents=True)
-        
-        # 全体の結果を保存
-        stats['total']['df'].to_csv(output_path / f"{prefix}results.csv", index=False)
-        
-        # 間違えた問題のリスト
-        wrong_answers = stats['total']['df'][~stats['total']['df']['is_correct']]
-        wrong_answers.to_csv(output_path / f"{prefix}wrong_answers.csv", index=False)
-        
-        # 可視化
-        plt.figure(figsize=(10, 6))
-        sns.histplot(data=stats['total']['df'], x='confidence', hue='is_correct', bins=20, multiple='stack')
-        plt.title('All Blocks - Confidence Distribution and Correctness')
-        plt.xlabel('Confidence')
-        plt.ylabel('Count')
-        plt.savefig(output_path / f"{prefix}confidence_distribution.png")
-        
-        # ブロック別の正答率グラフ
-        plt.figure(figsize=(10, 6))
-        blocks = list(stats['blocks'].keys())
-        accuracies = [stats['blocks'][block] for block in blocks]
-        sns.barplot(x=blocks, y=accuracies)
-        plt.title('Accuracy by Block')
-        plt.xlabel('Block')
-        plt.ylabel('Accuracy')
-        plt.ylim(0, 1)
-        for i, acc in enumerate(accuracies):
-            plt.text(i, acc + 0.02, f"{acc:.2%}", ha='center')
-        plt.savefig(output_path / f"{prefix}block_accuracies.png")
-        
-        # 画像なしの問題の結果を保存
-        if len(stats['no_image']['df']) > 0:
-            no_image_prefix = f"{prefix}no_image_"
-            stats['no_image']['df'].to_csv(output_path / f"{no_image_prefix}results.csv", index=False)
-            wrong_no_image = stats['no_image']['df'][~stats['no_image']['df']['is_correct']]
-            wrong_no_image.to_csv(output_path / f"{no_image_prefix}wrong_answers.csv", index=False)
-            
-            # 画像なしの問題の可視化
-            plt.figure(figsize=(10, 6))
-            sns.histplot(data=stats['no_image']['df'], x='confidence', hue='is_correct', bins=20, multiple='stack')
-            plt.title('No Image Problems - Confidence Distribution and Correctness')
-            plt.xlabel('Confidence')
-            plt.ylabel('Count')
-            plt.savefig(output_path / f"{no_image_prefix}confidence_distribution.png")
-            
-            # 画像なしの問題のブロック別正答率グラフ
-            if stats['no_image']['blocks']:
-                plt.figure(figsize=(10, 6))
-                no_image_blocks = list(stats['no_image']['blocks'].keys())
-                no_image_accuracies = [stats['no_image']['blocks'][block] for block in no_image_blocks]
-                sns.barplot(x=no_image_blocks, y=no_image_accuracies)
-                plt.title('No Image Problems - Accuracy by Block')
-                plt.xlabel('Block')
-                plt.ylabel('Accuracy')
-                plt.ylim(0, 1)
-                for i, acc in enumerate(no_image_accuracies):
-                    plt.text(i, acc + 0.02, f"{acc:.2%}", ha='center')
-                plt.savefig(output_path / f"{no_image_prefix}block_accuracies.png")
-        
-        print(f"統合結果を {output_dir} に保存しました")
+        summary_file = output_path / f"{prefix}summary.txt"
+        with open(summary_file, "w", encoding="utf-8") as f:
+            f.write(summary)
+        print(f"サマリを {summary_file} に保存しました")
 
 
 def main():
