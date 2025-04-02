@@ -544,6 +544,46 @@ wheels = [
 ]
 
 [[package]]
+name = "igakuqa119"
+version = "0.1.0"
+source = { virtual = "." }
+dependencies = [
+    { name = "aiohttp" },
+    { name = "anthropic" },
+    { name = "azure-ai-formrecognizer" },
+    { name = "matplotlib" },
+    { name = "openai" },
+    { name = "pandas" },
+    { name = "pdf2image" },
+    { name = "pillow" },
+    { name = "python-docx" },
+    { name = "python-dotenv" },
+    { name = "reportlab" },
+    { name = "ruff" },
+    { name = "seaborn" },
+    { name = "tqdm" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "aiohttp", specifier = ">=3.11.12" },
+    { name = "anthropic", specifier = ">=0.43.0" },
+    { name = "azure-ai-formrecognizer", specifier = ">=3.3.3" },
+    { name = "matplotlib" },
+    { name = "openai", specifier = ">=1.59.6" },
+    { name = "pandas" },
+    { name = "pandas", specifier = ">=2.2.3" },
+    { name = "pdf2image", specifier = ">=1.17.0" },
+    { name = "pillow", specifier = ">=11.1.0" },
+    { name = "python-docx", specifier = ">=1.1.2" },
+    { name = "python-dotenv", specifier = ">=1.0.1" },
+    { name = "reportlab", specifier = ">=4.2.5" },
+    { name = "ruff", specifier = ">=0.9.0" },
+    { name = "seaborn" },
+    { name = "tqdm", specifier = ">=4.67.1" },
+]
+
+[[package]]
 name = "isodate"
 version = "0.7.2"
 source = { registry = "https://pypi.org/simple" }
@@ -918,46 +958,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/38/e0/4f5855037a72cd8a7a2f60a3952d9aa45feedb37ae7831642102604e8a37/multidict-6.1.0-cp313-cp313-win32.whl", hash = "sha256:3a37ffb35399029b45c6cc33640a92bef403c9fd388acce75cdc88f58bd19a81", size = 26426 },
     { url = "https://files.pythonhosted.org/packages/7e/a5/17ee3a4db1e310b7405f5d25834460073a8ccd86198ce044dfaf69eac073/multidict-6.1.0-cp313-cp313-win_amd64.whl", hash = "sha256:e9aa71e15d9d9beaad2c6b9319edcdc0a49a43ef5c0a4c8265ca9ee7d6c67774", size = 28531 },
     { url = "https://files.pythonhosted.org/packages/99/b7/b9e70fde2c0f0c9af4cc5277782a89b66d35948ea3369ec9f598358c3ac5/multidict-6.1.0-py3-none-any.whl", hash = "sha256:48e171e52d1c4d33888e529b999e5900356b9ae588c2f09a52dcefb158b27506", size = 10051 },
-]
-
-[[package]]
-name = "nmle-rta"
-version = "0.1.0"
-source = { virtual = "." }
-dependencies = [
-    { name = "aiohttp" },
-    { name = "anthropic" },
-    { name = "azure-ai-formrecognizer" },
-    { name = "matplotlib" },
-    { name = "openai" },
-    { name = "pandas" },
-    { name = "pdf2image" },
-    { name = "pillow" },
-    { name = "python-docx" },
-    { name = "python-dotenv" },
-    { name = "reportlab" },
-    { name = "ruff" },
-    { name = "seaborn" },
-    { name = "tqdm" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "aiohttp", specifier = ">=3.11.12" },
-    { name = "anthropic", specifier = ">=0.43.0" },
-    { name = "azure-ai-formrecognizer", specifier = ">=3.3.3" },
-    { name = "matplotlib" },
-    { name = "openai", specifier = ">=1.59.6" },
-    { name = "pandas" },
-    { name = "pandas", specifier = ">=2.2.3" },
-    { name = "pdf2image", specifier = ">=1.17.0" },
-    { name = "pillow", specifier = ">=11.1.0" },
-    { name = "python-docx", specifier = ">=1.1.2" },
-    { name = "python-dotenv", specifier = ">=1.0.1" },
-    { name = "reportlab", specifier = ">=4.2.5" },
-    { name = "ruff", specifier = ">=0.9.0" },
-    { name = "seaborn" },
-    { name = "tqdm", specifier = ">=4.67.1" },
 ]
 
 [[package]]
