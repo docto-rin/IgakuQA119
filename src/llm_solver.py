@@ -34,6 +34,7 @@ explanation: [回答の理由を簡潔に]"""
                 "model_name": "o1",
                 "client_type": "openai",
                 "supports_vision": True,
+                "system_role": "system",
                 "system_prompt": self.system_prompt,
                 "parameters": {}
             },
@@ -42,6 +43,7 @@ explanation: [回答の理由を簡潔に]"""
                 "model_name": "gpt-4o",
                 "client_type": "openai",
                 "supports_vision": True,
+                "system_role": "system",
                 "system_prompt": self.system_prompt,
                 "parameters": {}
             },
@@ -50,6 +52,7 @@ explanation: [回答の理由を簡潔に]"""
                 "model_name": "o3-mini",
                 "client_type": "openai",
                 "supports_vision": False,
+                "system_role": "system",
                 "system_prompt": self.system_prompt,
                 "parameters": {"reasoning_effort": "high"}
             },
@@ -59,6 +62,7 @@ explanation: [回答の理由を簡潔に]"""
                 "model_name": "gemini-2.0-flash-001",
                 "client_type": "openai",
                 "supports_vision": True,
+                "system_role": "system",
                 "system_prompt": self.system_prompt,
                 "parameters": {}
             },
@@ -68,6 +72,7 @@ explanation: [回答の理由を簡潔に]"""
                 "model_name": "gemini-2.5-pro-exp-03-25",
                 "client_type": "openai",
                 "supports_vision": True,
+                "system_role": "system",
                 "system_prompt": self.system_prompt,
                 "parameters": {}
             },
@@ -77,15 +82,17 @@ explanation: [回答の理由を簡潔に]"""
                 "model_name": "gemma-3-27b-it",
                 "client_type": "openai",
                 "supports_vision": False,
+                "system_role": "user",
                 "system_prompt": self.system_prompt,
                 "parameters": {}
-            },     
+            },
             "deepseek": {
                 "api_key": os.getenv("DEEPSEEK_API_KEY"),
                 "base_url": os.getenv("DEEPSEEK_ENDPOINT"),
                 "model_name": "DeepSeek-R1",
                 "client_type": "openai",
                 "supports_vision": False,
+                "system_role": "system",
                 "system_prompt": self.system_prompt,
                 "parameters": {}
             },
@@ -94,29 +101,32 @@ explanation: [回答の理由を簡潔に]"""
                 "model_name": "claude-3-5-sonnet-20241022",
                 "client_type": "anthropic",
                 "supports_vision": True,
+                "system_role": "system",
                 "system_prompt": self.system_prompt,
                 "parameters": {
                     "temperature": 0.2,
                     "max_tokens": 1000
                 }
             },
-            # 柔軟なGeminiモデル指定のためのエントリー
+            # Geminiの柔軟な指定用エントリー
             "gemini-flexible": {
                 "api_key": os.getenv("GEMINI_API_KEY"),
                 "base_url": "https://generativelanguage.googleapis.com/v1beta/",
-                "model_name": None,  # 実際の使用時に動的に設定される
+                "model_name": None,  # 使用時に動的に設定
                 "client_type": "openai",
                 "supports_vision": True,
+                "system_role": "system",
                 "system_prompt": self.system_prompt,
                 "parameters": {}
             },
-            # 柔軟なOllamaモデル指定のためのエントリー
+            # Ollamaの柔軟な指定用エントリー
             "ollama-flexible": {
-                "api_key": "ollama",  # ダミーのAPIキー（実際は使われません）
-                "base_url": "http://localhost:11434/v1",  # Ollama APIサーバのURL。環境に合わせて変更
-                "model_name": None,  # 実際の使用時に動的に設定される
+                "api_key": "ollama",  # ダミーAPIキー（実際は使用されない）
+                "base_url": "http://localhost:11434/v1",
+                "model_name": None,  # 使用時に動的に設定
                 "client_type": "openai",
                 "supports_vision": False,
+                "system_role": "system",
                 "system_prompt": self.system_prompt,
                 "parameters": {}
             }
@@ -160,12 +170,6 @@ explanation: [回答の理由を簡潔に]"""
     def solve_question(self, question: Dict, model_key: str) -> Dict:
         """1つの問題を解く"""
         config, client = self.get_config_and_client(model_key)
-        allow_system_prompt = config["model_name"] != "gemma-3-27b-it"  # gemma-3-27b-itはシステムプロンプトを使用しない
-        # print(f"allow_system_prompt: {allow_system_prompt}")
-        if allow_system_prompt:
-            system_role = "system"
-        else:
-            system_role = "user"
 
         # 問題文を構築
         prompt = f"""問題：{question['question']}
@@ -187,7 +191,7 @@ explanation: [回答の理由を簡潔に]"""
             else:
                 # OpenAI APIの呼び出しを修正
                 messages = [
-                    {"role": system_role, "content": config["system_prompt"]},
+                    {"role": config["system_role"], "content": config["system_prompt"]},
                     {"role": "user", "content": prompt}
                 ]
 
@@ -204,7 +208,7 @@ explanation: [回答の理由を簡潔に]"""
                             }
                         })
                     messages = [
-                        {"role": system_role, "content": config["system_prompt"]},
+                        {"role": config["system_role"], "content": config["system_prompt"]},
                         {"role": "user", "content": content}
                     ]
 
@@ -315,6 +319,7 @@ explanation: [回答の理由を簡潔に]"""
         :param client: APIを呼び出すためのクライアントインスタンス
         :return: モデルが再整形したテキスト応答（fixed_response）
         """
+        system_role = config["system_role"]
         system_prompt = config["system_prompt"]
 
         retry_prompt = f"""
@@ -327,7 +332,7 @@ explanation: [回答の理由を簡潔に]"""
     """
 
         messages = [
-            {"role": "system", "content": system_prompt},
+            {"role": system_role, "content": system_prompt},
             {"role": "user", "content": retry_prompt}
         ]
 
@@ -344,4 +349,3 @@ explanation: [回答の理由を簡潔に]"""
         except Exception as e:
             print(f"ポストプロセス中に例外が発生しました: {e}")
             return ""
-
