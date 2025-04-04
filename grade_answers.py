@@ -444,79 +444,9 @@ def main():
         
         # 統合結果の接頭辞を生成
         all_prefix = f"{common_base_number}_all_{common_model_name}_"
-        general_prefix = f"{common_base_number}_general_{common_model_name}_"
-        required_prefix = f"{common_base_number}_required_{common_model_name}_"
-        no_image_prefix = f"{common_base_number}_no_image_{common_model_name}_"
         
         # 統合レポートを生成
         generate_consolidated_report(consolidated_stats, args.output, all_prefix)
-        
-        # 一般問題と必修問題の分割結果を保存
-        if args.output:
-            output_path = Path(args.output)
-            output_path.mkdir(exist_ok=True, parents=True)
-            
-            # 一般問題の結果をファイルに保存（データがある場合のみ）
-            if len(consolidated_stats['general']['df']) > 0:
-                consolidated_stats['general']['df'].to_csv(output_path / f"{general_prefix}results.csv", index=False)
-                wrong_general = consolidated_stats['general']['df'][~consolidated_stats['general']['df']['is_correct']]
-                wrong_general.to_csv(output_path / f"{general_prefix}wrong_answers.csv", index=False)
-                
-                # 一般問題の可視化
-                plt.figure(figsize=(10, 6))
-                sns.histplot(data=consolidated_stats['general']['df'], x='confidence', hue='is_correct', bins=20, multiple='stack')
-                plt.title('General Problems - Confidence Distribution and Correctness')
-                plt.xlabel('Confidence')
-                plt.ylabel('Count')
-                plt.savefig(output_path / f"{general_prefix}confidence_distribution.png")
-            else:
-                print("警告: 一般問題のデータが見つかりません。(A,C,D,Fブロック)")
-            
-            # 必修問題の結果をファイルに保存（データがある場合のみ）
-            if len(consolidated_stats['required']['df']) > 0:
-                consolidated_stats['required']['df'].to_csv(output_path / f"{required_prefix}results.csv", index=False)
-                wrong_required = consolidated_stats['required']['df'][~consolidated_stats['required']['df']['is_correct']]
-                wrong_required.to_csv(output_path / f"{required_prefix}wrong_answers.csv", index=False)
-                
-                # 必修問題の可視化
-                plt.figure(figsize=(10, 6))
-                sns.histplot(data=consolidated_stats['required']['df'], x='confidence', hue='is_correct', bins=20, multiple='stack')
-                plt.title('Required Problems - Confidence Distribution and Correctness')
-                plt.xlabel('Confidence')
-                plt.ylabel('Count')
-                plt.savefig(output_path / f"{required_prefix}confidence_distribution.png")
-            else:
-                print("警告: 必修問題のデータが見つかりません。(B,Eブロック)")
-            
-            # 画像なしの問題の分割結果を保存
-            if len(consolidated_stats['no_image']['df']) > 0:
-                consolidated_stats['no_image']['df'].to_csv(output_path / f"{no_image_prefix}results.csv", index=False)
-                wrong_no_image = consolidated_stats['no_image']['df'][~consolidated_stats['no_image']['df']['is_correct']]
-                wrong_no_image.to_csv(output_path / f"{no_image_prefix}wrong_answers.csv", index=False)
-                
-                # 画像なしの問題の可視化
-                plt.figure(figsize=(10, 6))
-                sns.histplot(data=consolidated_stats['no_image']['df'], x='confidence', hue='is_correct', bins=20, multiple='stack')
-                plt.title('No Image Problems - Confidence Distribution and Correctness')
-                plt.xlabel('Confidence')
-                plt.ylabel('Count')
-                plt.savefig(output_path / f"{no_image_prefix}confidence_distribution.png")
-                
-                # 画像なしの一般問題の結果
-                if len(consolidated_stats['no_image']['general']['df']) > 0:
-                    no_image_general_prefix = f"{common_base_number}_no_image_general_{common_model_name}_"
-                    consolidated_stats['no_image']['general']['df'].to_csv(output_path / f"{no_image_general_prefix}results.csv", index=False)
-                    wrong_no_image_general = consolidated_stats['no_image']['general']['df'][~consolidated_stats['no_image']['general']['df']['is_correct']]
-                    wrong_no_image_general.to_csv(output_path / f"{no_image_general_prefix}wrong_answers.csv", index=False)
-                
-                # 画像なしの必修問題の結果
-                if len(consolidated_stats['no_image']['required']['df']) > 0:
-                    no_image_required_prefix = f"{common_base_number}_no_image_required_{common_model_name}_"
-                    consolidated_stats['no_image']['required']['df'].to_csv(output_path / f"{no_image_required_prefix}results.csv", index=False)
-                    wrong_no_image_required = consolidated_stats['no_image']['required']['df'][~consolidated_stats['no_image']['required']['df']['is_correct']]
-                    wrong_no_image_required.to_csv(output_path / f"{no_image_required_prefix}wrong_answers.csv", index=False)
-            else:
-                print("警告: 画像なしの問題のデータが見つかりません。")
 
 
 if __name__ == "__main__":

@@ -49,7 +49,6 @@ Example script for grading answers:
 EXP="gemini-2.5-pro"
 uv run grade_answers.py \
   --json_paths $(ls answer/json/119{A,B,C,D,E,F}_${EXP}.json) \
-  --answers_path results/correct_answers.csv
 ```
 
 ## License
