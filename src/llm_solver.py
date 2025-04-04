@@ -93,26 +93,6 @@ class LLMSolver:
                 "system_prompt": self.system_prompt,
                 "parameters": {"reasoning_effort": "high"}
             },
-            "gemini": {
-                "api_key": os.getenv("GEMINI_API_KEY"),
-                "base_url": "https://generativelanguage.googleapis.com/v1beta/",
-                "model_name": "gemini-2.0-flash-001",
-                "client_type": "openai",
-                "supports_vision": True,
-                "system_role": "system",
-                "system_prompt": self.system_prompt,
-                "parameters": {}
-            },
-            "gemini-2.5-pro": {
-                "api_key": os.getenv("GEMINI_API_KEY"),
-                "base_url": "https://generativelanguage.googleapis.com/v1beta/",
-                "model_name": "gemini-2.5-pro-exp-03-25",
-                "client_type": "openai",
-                "supports_vision": True,
-                "system_role": "system",
-                "system_prompt": self.system_prompt,
-                "parameters": {}
-            },
             "gemma-3": {
                 "api_key": os.getenv("GEMINI_API_KEY"),
                 "base_url": "https://generativelanguage.googleapis.com/v1beta/",

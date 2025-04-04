@@ -1,0 +1,44 @@
+{
+    "Gemini 2.5 Pro": {
+        "overall_score": 485.0,
+        "overall_possible_score": 500.0,
+        "overall_score_rate": 0.97,
+        "overall_correct": 389,
+        "overall_total": 400,
+        "overall_accuracy": 0.9725,
+        "no_image_score": 372.0,
+        "no_image_possible_score": 383.0,
+        "no_image_score_rate": 0.9712793733681462,
+        "no_image_correct": 290,
+        "no_image_total": 297,
+        "no_image_accuracy": 0.9764309764309764
+    },
+    "CA-DSR1-DQ32B-JP": {
+        "overall_score": 376.0,
+        "overall_possible_score": 500.0,
+        "overall_score_rate": 0.752,
+        "overall_correct": 292,
+        "overall_total": 400,
+        "overall_accuracy": 0.73,
+        "no_image_score": 295.0,
+        "no_image_possible_score": 383.0,
+        "no_image_score_rate": 0.7702349869451697,
+        "no_image_correct": 223,
+        "no_image_total": 297,
+        "no_image_accuracy": 0.7508417508417509
+    },
+    "Gemma-3-27B": {
+        "overall_score": 320.0,
+        "overall_possible_score": 500.0,
+        "overall_score_rate": 0.64,
+        "overall_correct": 252,
+        "overall_total": 400,
+        "overall_accuracy": 0.63,
+        "no_image_score": 252.0,
+        "no_image_possible_score": 383.0,
+        "no_image_score_rate": 0.6579634464751958,
+        "no_image_correct": 196,
+        "no_image_total": 297,
+        "no_image_accuracy": 0.6599326599326599
+    }
+}

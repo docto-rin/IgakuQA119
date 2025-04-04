@@ -6,13 +6,13 @@ def main():
     parser = argparse.ArgumentParser(description="医師国家試験の問題をLLMで解く")
     parser.add_argument(
         "input_json",
-        help="入力JSONファイルのパス (例: question/119A_json.json)"
+        help="入力JSONファイルのパス (例: questions/119A_json.json)"
     )
     parser.add_argument(
         "--models",
         nargs="+",
         required=True,
-        help="使用するモデル（複数指定可） (例: gpt-4o claude gemini-2.5-pro)"
+        help="使用するモデル (例: gpt-4o, claude, gemini-2.5-pro)"
     )
     parser.add_argument(
         "--questions",

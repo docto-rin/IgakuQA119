@@ -22,12 +22,13 @@ output/
 
 # data
 data/
-answer/
+answers/
 cleaned/
 pdf/
 csv/
 results/
 !results/correct_answers.csv
+!results/leaderboard.json
 
 # pyenv
 .python-version
