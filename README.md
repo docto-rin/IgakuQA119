@@ -44,10 +44,10 @@ Example script to solve exam questions using an LLM:
 
 ```bash
 EXP="gemini-2.5-pro"
-MODEL_NAME="gemini-2.5-pro-exp-03-25"   # Actual model name used by the API
+MODEL_NAME="gemini-2.5-pro-exp-03-25" # Actual model name used by the API
 
 for suffix in A B C D E F; do
-  uv run main.py "question/119${suffix}_json.json" \
+  uv run main.py "questions/119${suffix}_json.json" \
     --exp "119${suffix}_${EXP}" \
     --models "${MODEL_NAME}"
 done
@@ -59,10 +59,11 @@ Example script for grading answers:
 
 ```bash
 EXP="gemini-2.5-pro"
-ENTRY_NAME="Gemini 2.5 Pro"   # Desired name for the Leaderboard entry
+ENTRY_NAME="Gemini 2.5 Pro" # Desired name for the Leaderboard entry
+
 uv run grade_answers.py \
-  --json_paths $(ls answer/json/119{A,B,C,D,E,F}_${EXP}.json) \
-  --model_name "${ENTRY_NAME}"
+  --json_paths $(ls answers/119{A,B,C,D,E,F}_${EXP}.json) \
+  --entry_name "${ENTRY_NAME}"
 ```
 
 **This script automatically updates the Leaderboard section in this README file** with the consolidated results based on the processed JSON files.
