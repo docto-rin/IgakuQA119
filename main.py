@@ -47,7 +47,7 @@ def main():
         results = solver.process_questions(questions, args.models, file_exp=args.exp)
         
         print("処理が完了しました。")
-        print("結果は answer/ ディレクトリに保存されています。")
+        print("結果は answers/ ディレクトリに保存されています。")
 
     except Exception as e:
         print(f"エラーが発生しました: {str(e)}")
