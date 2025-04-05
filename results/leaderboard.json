@@ -41,20 +41,6 @@
         "no_image_total": 297,
         "no_image_accuracy": 0.6599326599326599
     },
-    "PLaMo-1.0-Prime": {
-        "overall_score": 201.0,
-        "overall_possible_score": 500.0,
-        "overall_score_rate": 0.402,
-        "overall_correct": 161,
-        "overall_total": 400,
-        "overall_accuracy": 0.4025,
-        "no_image_score": 153.0,
-        "no_image_possible_score": 383.0,
-        "no_image_score_rate": 0.39947780678851175,
-        "no_image_correct": 119,
-        "no_image_total": 297,
-        "no_image_accuracy": 0.4006734006734007
-    },
     "Gemini-2.0-Flash": {
         "overall_score": 436.0,
         "overall_possible_score": 500.0,
@@ -68,5 +54,19 @@
         "no_image_correct": 263,
         "no_image_total": 297,
         "no_image_accuracy": 0.8855218855218855
+    },
+    "PLaMo-1.0-Prime": {
+        "overall_score": 211.0,
+        "overall_possible_score": 500.0,
+        "overall_score_rate": 0.422,
+        "overall_correct": 175,
+        "overall_total": 400,
+        "overall_accuracy": 0.4375,
+        "no_image_score": 156.0,
+        "no_image_possible_score": 383.0,
+        "no_image_score_rate": 0.4073107049608355,
+        "no_image_correct": 126,
+        "no_image_total": 297,
+        "no_image_accuracy": 0.42424242424242425
     }
 }

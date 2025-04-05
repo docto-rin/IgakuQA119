@@ -131,7 +131,7 @@ class LLMSolver:
                 "model_name": "plamo-1.0-prime", # Specific PLaMo model
                 "client_type": "openai", # OpenAI compatible API
                 "supports_vision": False, # PLaMo currently does not support vision
-                "system_role": "system", # Based on curl example
+                "system_role": "user", # Improved performance compared to 'system'
                 "system_prompt": self.system_prompt,
                 "parameters": {} # Add any specific PLaMo parameters here if needed
             },
