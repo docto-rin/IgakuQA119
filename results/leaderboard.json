@@ -1,5 +1,5 @@
 {
-    "Gemini 2.5 Pro": {
+    "Gemini-2.5-Pro": {
         "overall_score": 485.0,
         "overall_possible_score": 500.0,
         "overall_score_rate": 0.97,
@@ -40,5 +40,33 @@
         "no_image_correct": 196,
         "no_image_total": 297,
         "no_image_accuracy": 0.6599326599326599
+    },
+    "PLaMo-1.0-Prime": {
+        "overall_score": 201.0,
+        "overall_possible_score": 500.0,
+        "overall_score_rate": 0.402,
+        "overall_correct": 161,
+        "overall_total": 400,
+        "overall_accuracy": 0.4025,
+        "no_image_score": 153.0,
+        "no_image_possible_score": 383.0,
+        "no_image_score_rate": 0.39947780678851175,
+        "no_image_correct": 119,
+        "no_image_total": 297,
+        "no_image_accuracy": 0.4006734006734007
+    },
+    "Gemini-2.0-Flash": {
+        "overall_score": 436.0,
+        "overall_possible_score": 500.0,
+        "overall_score_rate": 0.872,
+        "overall_correct": 352,
+        "overall_total": 400,
+        "overall_accuracy": 0.88,
+        "no_image_score": 333.0,
+        "no_image_possible_score": 383.0,
+        "no_image_score_rate": 0.8694516971279374,
+        "no_image_correct": 263,
+        "no_image_total": 297,
+        "no_image_accuracy": 0.8855218855218855
     }
 }

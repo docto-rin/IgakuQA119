@@ -1,3 +1,4 @@
+# grade_answers.py
 import json
 import pandas as pd
 import argparse
@@ -9,8 +10,6 @@ import glob # ファイル検索用にglobを追加
 # --- 定数定義 ---
 LEADERBOARD_START_MARKER = "<!-- LEADERBOARD_START -->"
 LEADERBOARD_END_MARKER = "<!-- LEADERBOARD_END -->"
-
-# --- 既存関数の修正・改善 ---
 
 def load_model_answers(json_path):
     """JSONファイルからモデルの解答データを読み込む"""
@@ -64,11 +63,15 @@ def load_correct_answers(answers_path):
     return df
 
 def grade_answers(model_data, correct_df):
-    """モデルの解答を採点する"""
+    """
+    モデルの解答を採点し、スキップされた問題番号も返す。
+    戻り値: (results_df, accuracy, model_name_in_json, skipped_questions)
+    """
     results = []
     correct_count = 0
     total_questions = 0 # 正解が存在する問題の数
     model_name_in_json = None # JSONデータからモデル名を取得
+    skipped_questions = [] # スキップされた問題番号を記録
 
     try:
         correct_answers = dict(zip(correct_df['問題番号'].astype(str), correct_df['解答'].astype(str)))
@@ -80,39 +83,57 @@ def grade_answers(model_data, correct_df):
 
     if 'results' not in model_data or not isinstance(model_data['results'], list):
         print(f"警告: JSONデータに 'results' キーがないか、リスト形式ではありません。")
-        return pd.DataFrame(results), 0.0, None
+        return pd.DataFrame(results), 0.0, None, []
 
     for i, question in enumerate(model_data['results']):
         if not isinstance(question, dict):
             print(f"警告: resultsリストの要素 {i} が辞書形式ではありません。スキップします: {question}")
             continue
 
+        question_number_raw = question.get('question_number')
+        question_number = str(question_number_raw) if question_number_raw is not None else 'N/A'
+
         required_keys = ['question_number', 'answers', 'has_image']
         if not all(key in question for key in required_keys):
             missing_keys = [key for key in required_keys if key not in question]
-            print(f"警告: questionデータに必要なキーがありません ({missing_keys})。スキップします: {question.get('question_number', 'N/A')}")
+            print(f"警告: questionデータに必要なキーがありません ({missing_keys})。スキップします: {question_number}")
+            if question_number != 'N/A':
+                skipped_questions.append(question_number)
             continue
 
         if not isinstance(question['answers'], list) or not question['answers']:
-            print(f"警告: question {question.get('question_number', 'N/A')} の 'answers' が空またはリスト形式ではありません。スキップします。")
+            print(f"警告: question {question_number} の 'answers' が空またはリスト形式ではありません。スキップします。")
+            if question_number != 'N/A':
+                 skipped_questions.append(question_number)
             continue
 
-        answer_data = question['answers'][0] # 最初の解答を使用
+        answer_data = question['answers'][0]
         if not isinstance(answer_data, dict):
-            print(f"警告: question {question.get('question_number', 'N/A')} の最初のanswerが辞書形式ではありません。スキップします。")
+            print(f"警告: question {question_number} の最初のanswerが辞書形式ではありません。スキップします。")
+            if question_number != 'N/A':
+                 skipped_questions.append(question_number)
             continue
 
         required_answer_keys = ['answer', 'model', 'confidence']
-        if not all(key in answer_data for key in required_answer_keys):
-            missing_keys = [key for key in required_answer_keys if key not in answer_data]
-            print(f"警告: answerデータに必要なキーがありません ({missing_keys})。スキップします: {question.get('question_number', 'N/A')}")
-            continue
+        missing_keys = [key for key in required_answer_keys if key not in answer_data]
+        if missing_keys:
+             # 'answer' や 'confidence' が欠けている場合にスキップ
+             if 'answer' in missing_keys or 'confidence' in missing_keys:
+                 print(f"警告: answerデータに必要なキーがありません ({missing_keys})。スキップします: {question_number}")
+                 if question_number != 'N/A':
+                     skipped_questions.append(question_number)
+                 continue
+             else: # modelキーがないなどは警告のみで続行する場合（今回はスキップ）
+                 print(f"警告: answerデータに必要なキーがありません ({missing_keys})。スキップします: {question_number}")
+                 if question_number != 'N/A':
+                     skipped_questions.append(question_number)
+                 continue
 
-        question_number = str(question.get('question_number', 'Unknown')) # 文字列に統一
+
         model_answer = answer_data.get('answer')
-        model_name = answer_data.get('model', 'UnknownModel') # JSON内のモデル名
+        model_name = answer_data.get('model', 'UnknownModel')
         confidence = answer_data.get('confidence')
-        has_image = question.get('has_image', False) # デフォルト値を設定
+        has_image = question.get('has_image', False)
 
         if model_name_in_json is None and model_name != 'UnknownModel':
             model_name_in_json = model_name
@@ -125,10 +146,11 @@ def grade_answers(model_data, correct_df):
             try:
                 model_answer_str = str(model_answer).strip().lower() if model_answer is not None else ""
                 correct_answer_str = str(correct_answer).strip().lower()
+                model_answer_str = model_answer_str.replace('[', '').replace(']', '').replace(',', '').replace(' ', '')
 
                 if not model_answer_str:
                     is_correct = False
-                elif question_number == '119E28': # 特定問題の複数正解処理
+                elif question_number == '119E28':
                     is_correct = model_answer_str in ['a', 'c']
                 else:
                     is_correct = model_answer_str == correct_answer_str
@@ -139,12 +161,11 @@ def grade_answers(model_data, correct_df):
             if is_correct:
                 correct_count += 1
         else:
-             # print(f"警告: 問題番号 {question_number} の正解が解答辞書に見つかりません。採点対象外とします。")
-             pass # 正解がない場合は採点しないだけなので、警告は抑制してもよい
+             pass
 
         results.append({
             'question_number': question_number,
-            'model': model_name, # JSONから取得したモデル名
+            'model': model_name,
             'model_answer': model_answer,
             'correct_answer': correct_answer,
             'is_correct': is_correct,
@@ -153,8 +174,7 @@ def grade_answers(model_data, correct_df):
         })
 
     accuracy = correct_count / total_questions if total_questions > 0 else 0.0
-    return pd.DataFrame(results), accuracy, model_name_in_json
-
+    return pd.DataFrame(results), accuracy, model_name_in_json, sorted(list(set(skipped_questions)))
 
 def print_individual_report_summary(results_df, accuracy, json_filename):
     """
@@ -167,8 +187,9 @@ def print_individual_report_summary(results_df, accuracy, json_filename):
 
     report_model_name = "UnknownModel"
     if not results_df.empty and 'model' in results_df.columns:
-        first_valid_model = results_df['model'].dropna().iloc[0] if not results_df['model'].dropna().empty else "UnknownModel"
-        report_model_name = first_valid_model
+        valid_models = results_df['model'].dropna()
+        if not valid_models.empty:
+            report_model_name = valid_models.iloc[0]
 
     print(f"ファイル: {json_filename}")
     print(f"モデル (JSON内): {report_model_name}")
@@ -181,25 +202,11 @@ def print_individual_report_summary(results_df, accuracy, json_filename):
     if len(results_df) != total_len_graded:
         print(f"(全問題数: {len(results_df)}, うち正解不明: {len(results_df) - total_len_graded})")
 
-    # 信頼度と正誤の関係を分析 (NaNを除外)
-    print("\n信頼度と正誤の関係 (コンソール表示のみ):")
-    try:
-        if 'confidence' in results_df.columns and pd.api.types.is_numeric_dtype(results_df['confidence']):
-            confidence_accuracy = valid_results.dropna(subset=['confidence', 'is_correct']).groupby('confidence')['is_correct'].mean()
-            if not confidence_accuracy.empty:
-                # print(confidence_accuracy) # 詳細すぎるのでコメントアウトしてもよい
-                pass # 必要なら表示
-            else:
-                print("  情報: 信頼度と正誤の組み合わせデータがありません。")
-        else:
-            print("  情報: 'confidence'列が存在しないか数値型でないため、信頼度分析はスキップします。")
-    except Exception as e:
-        print(f"  エラー: 信頼度分析中にエラーが発生しました: {e}")
+    # 信頼度分析 (省略)
+    print("-" * 20)
 
-    print("-" * 20) # 区切り線
-
-# --- 新しい関数: 統合レポートファイル生成 ---
-def generate_consolidated_files(consolidated_df, output_dir, prefix, entry_name):
+# --- 統合レポートファイル生成 (ファイル名に file_identifier を使用) ---
+def generate_consolidated_files(consolidated_df, output_dir, prefix, file_identifier):
     """統合された結果からレポートファイル（プロット、CSV）を生成する"""
     if consolidated_df.empty:
         print("情報: 統合結果データフレームが空のため、ファイル生成をスキップします。")
@@ -207,19 +214,19 @@ def generate_consolidated_files(consolidated_df, output_dir, prefix, entry_name)
 
     output_path = Path(output_dir)
     output_path.mkdir(exist_ok=True, parents=True)
-    file_prefix = f"{prefix}{entry_name}_" # 例: 119_all_Gemma_3_
+    # ファイル名プレフィックスに file_identifier を使用
+    file_prefix = f"{prefix}{file_identifier}_" # 例: 119_my-exp_
 
     try:
         print("\n--- 統合レポートファイルの作成 ---")
         # --- 信頼度分布プロット (統合版) ---
         if 'confidence' in consolidated_df.columns and pd.api.types.is_numeric_dtype(consolidated_df['confidence']):
             plt.figure(figsize=(10, 6))
-            # dropna()でNaNを含む行を除外 (confidence と is_correct 両方)
-            # 正解が存在する問題のみでプロット (consolidated_df は既に filter 済みのはずだが念のため)
             plot_data = consolidated_df.dropna(subset=['confidence', 'is_correct'])
             if not plot_data.empty:
                  sns.histplot(data=plot_data, x='confidence', hue='is_correct', bins=20, multiple='stack')
-                 plt.title(f'Confidence Distribution and Correctness ({entry_name} - Consolidated)')
+                 # タイトルには file_identifier を使用 (どちらでも良いが一貫性のため)
+                 plt.title(f'Confidence Distribution and Correctness ({file_identifier} - Consolidated)')
                  plt.xlabel('Confidence')
                  plt.ylabel('Count (Graded Questions)')
                  plot_path = output_path / f"{file_prefix}confidence_distribution.png"
@@ -232,7 +239,7 @@ def generate_consolidated_files(consolidated_df, output_dir, prefix, entry_name)
             print("情報: 統合結果に'confidence'列がないか数値型でないため、信頼度グラフは生成されません。")
 
         # --- 間違えた問題のリスト (統合版) ---
-        wrong_answers = consolidated_df[~consolidated_df['is_correct']]
+        wrong_answers = consolidated_df[consolidated_df['is_correct'] == False]
         if not wrong_answers.empty:
             wrong_csv_path = output_path / f"{file_prefix}wrong_answers.csv"
             wrong_answers.to_csv(wrong_csv_path, index=False, encoding='utf-8-sig')
@@ -241,8 +248,6 @@ def generate_consolidated_files(consolidated_df, output_dir, prefix, entry_name)
              print("情報: 統合結果で間違えた問題はありませんでした (採点対象内で)。")
 
         # --- 全結果のCSV (統合版) ---
-        # consolidate_results で返される df は graded_df (正解が存在するもの) なので注意
-        # もし正解不明も含めた全データが必要なら consolidate_results から original_combined_df を返すように修正が必要
         results_csv_path = output_path / f"{file_prefix}grading_results.csv"
         consolidated_df.to_csv(results_csv_path, index=False, encoding='utf-8-sig')
         print(f"全採点結果CSVを {results_csv_path} に保存しました。")
@@ -250,7 +255,7 @@ def generate_consolidated_files(consolidated_df, output_dir, prefix, entry_name)
     except Exception as e:
         print(f"エラー: 統合レポートファイルの保存中にエラーが発生しました: {e}")
 
-
+# --- 結果統合関数 ---
 def consolidate_results(all_results):
     """複数ブロックの結果を統合し、各種統計情報を計算する"""
     if not all_results:
@@ -266,12 +271,10 @@ def consolidate_results(all_results):
                 'required': {'df': pd.DataFrame(), 'correct': 0, 'total': 0, 'accuracy': 0.0, 'score': 0.0, 'possible_score': 0.0, 'score_rate': 0.0},
                 'block_accuracies': {}, 'block_score_rates': {}
             },
-            # 'original_combined_df': pd.DataFrame() # 必要なら追加
         }
         return empty_stats
 
     combined_df = pd.concat(all_results, ignore_index=True)
-    # original_combined_df = combined_df.copy() # 元の全データを保持する場合
 
     graded_df = combined_df.dropna(subset=['correct_answer']).copy()
     if len(graded_df) != len(combined_df):
@@ -279,26 +282,20 @@ def consolidate_results(all_results):
 
     if graded_df.empty:
         print("警告: 正解データが存在する有効な結果が統合後に見つかりませんでした。")
-        empty_stats['original_combined_df'] = combined_df # 元データだけ返す
+        empty_stats['total']['df'] = pd.DataFrame()
         return empty_stats
 
     try:
         graded_df['question_number'] = graded_df['question_number'].astype(str)
-        graded_df['block'] = graded_df['question_number'].str[3].str.upper()
+        graded_df['block'] = graded_df['question_number'].apply(
+            lambda x: x[3].upper() if isinstance(x, str) and len(x) > 3 and x[3].isalpha() else 'Unknown'
+        )
         graded_df['has_image'] = graded_df['has_image'].fillna(False).astype(bool)
         graded_df['is_correct'] = graded_df['is_correct'].fillna(False).astype(bool)
     except Exception as e:
         print(f"エラー: 統合データの前処理中にエラーが発生しました: {e}")
-        # エラーが発生した場合でも処理を続けられるように、空のDataFrameを返す
-        return {
-            'total': {'df': pd.DataFrame(), 'correct': 0, 'total': 0, 'accuracy': 0.0, 'score': 0.0, 'possible_score': 0.0, 'score_rate': 0.0, 'block_accuracies': {}, 'block_score_rates': {}},
-            # 他のカテゴリも同様に空にする
-            'general': {'df': pd.DataFrame(), 'correct': 0, 'total': 0, 'accuracy': 0.0, 'score': 0.0, 'possible_score': 0.0, 'score_rate': 0.0},
-            'required': {'df': pd.DataFrame(), 'correct': 0, 'total': 0, 'accuracy': 0.0, 'score': 0.0, 'possible_score': 0.0, 'score_rate': 0.0},
-            'block_accuracies': {}, 'block_score_rates': {},
-            'no_image': { 'df': pd.DataFrame(), 'correct': 0, 'total': 0, 'accuracy': 0.0, 'score': 0.0, 'possible_score': 0.0, 'score_rate': 0.0, 'general': {}, 'required': {}, 'block_accuracies': {}, 'block_score_rates': {}},
-            # 'original_combined_df': original_combined_df
-        }
+        empty_stats['total']['df'] = pd.DataFrame()
+        return empty_stats
 
 
     general_blocks = ['A', 'C', 'D', 'F']
@@ -307,17 +304,18 @@ def consolidate_results(all_results):
 
     invalid_block_mask = ~graded_df['block'].isin(valid_blocks)
     if invalid_block_mask.any():
-        print(f"警告: 不正または不明なブロックIDを持つ問題が {invalid_block_mask.sum()} 件あります（採点対象内）。これらは集計から除外される可能性があります。")
+        invalid_count = invalid_block_mask.sum()
+        print(f"警告: 不正または不明なブロックID ('Unknown'など) を持つ問題が {invalid_count} 件あります（採点対象内）。")
+        print("これらは一般/必修の集計に含まれません。例:")
         print(graded_df.loc[invalid_block_mask, ['question_number', 'block']].head())
-        # graded_df = graded_df[graded_df['block'].isin(valid_blocks)] # 必要なら除外
 
     graded_df['is_general'] = graded_df['block'].isin(general_blocks)
     graded_df['is_required'] = graded_df['block'].isin(required_blocks)
 
-    # --- 点数計算関数 (変更なし) ---
+    # --- 点数計算関数 ---
     def required_point(question_number):
         try:
-            block = question_number[3].upper()
+            block = question_number[3].upper() if len(question_number) > 3 else ''
             if block in ['B', 'E']:
                 num_part = ''.join(filter(str.isdigit, question_number[4:]))
                 num = int(num_part) if num_part else 0
@@ -331,15 +329,14 @@ def consolidate_results(all_results):
         block = row['block']
         is_correct = row['is_correct']
         question_number = row['question_number']
+        possible = 0
+        score = 0
         if block in required_blocks:
             possible = required_point(question_number)
             score = possible if is_correct else 0
         elif block in general_blocks:
             possible = 1
             score = 1 if is_correct else 0
-        else:
-            possible = 0
-            score = 0
         return pd.Series({'score': score, 'possible': possible})
 
     try:
@@ -350,18 +347,19 @@ def consolidate_results(all_results):
         graded_df['score'] = 0
         graded_df['possible'] = 0
 
-    # 画像なしDFは点数計算後に作成
     no_image_df = graded_df[~graded_df['has_image']].copy()
 
     print(f"\n統合結果概要 (採点対象):")
     print(f"  総問題数: {len(graded_df)}")
-    print(f"  処理したブロック: {sorted(list(graded_df['block'].unique()))}") # uniqueの結果をリストに変換
+    processed_blocks_list = sorted([b for b in graded_df['block'].unique() if b != 'Unknown'])
+    unknown_block_count = (graded_df['block'] == 'Unknown').sum()
+    print(f"  処理したブロック: {processed_blocks_list}" + (f" (不明ブロック: {unknown_block_count}件)" if unknown_block_count > 0 else ""))
     print(f"  一般問題 (A,C,D,F): {graded_df['is_general'].sum()} 件")
     print(f"  必修問題 (B,E): {graded_df['is_required'].sum()} 件")
     print(f"  画像あり問題: {graded_df['has_image'].sum()} 件")
     print(f"  画像なし問題: {len(no_image_df)} 件")
 
-    # --- 集計関数 (変更なし) ---
+    # --- 集計関数 ---
     def calculate_category_stats(df):
         if df.empty:
             return {'correct': 0, 'total': 0, 'accuracy': 0.0, 'score': 0.0, 'possible_score': 0.0, 'score_rate': 0.0}
@@ -376,15 +374,16 @@ def consolidate_results(all_results):
 
     def calculate_block_stats(df):
          if df.empty or 'block' not in df.columns: return {}, {}
-         block_agg = df.groupby('block').agg(
+         df_filtered = df[df['block'] != 'Unknown']
+         if df_filtered.empty: return {}, {}
+         block_agg = df_filtered.groupby('block').agg(
              correct=('is_correct', 'sum'),
              total=('is_correct', 'size'),
              score=('score', 'sum'),
              possible=('possible', 'sum')
-         )
-         block_agg['accuracy'] = (block_agg['correct'] / block_agg['total'].replace(0, pd.NA)).astype(float)
-         block_agg['score_rate'] = (block_agg['score'] / block_agg['possible'].replace(0, pd.NA)).astype(float)
-         # NaN を 0.0 に置換しない方が実態に近い場合もある
+         ).astype(float)
+         block_agg['accuracy'] = (block_agg['correct'] / block_agg['total']).fillna(0.0)
+         block_agg['score_rate'] = (block_agg['score'] / block_agg['possible']).fillna(0.0)
          return block_agg['accuracy'].to_dict(), block_agg['score_rate'].to_dict()
 
     total_stats = calculate_category_stats(graded_df)
@@ -409,38 +408,48 @@ def consolidate_results(all_results):
             'block_accuracies': no_image_block_accuracies,
             'block_score_rates': no_image_block_score_rates
         },
-        # 'original_combined_df': original_combined_df # 必要なら追加
     }
     return stats
 
-
-def generate_consolidated_report(stats, entry_name, output_dir=None, prefix=""):
-    """統合された結果のレポートを生成し、サマリテキストファイルとして保存する"""
+# --- 統合レポート生成 (タイトルとファイル名識別子を区別) ---
+def generate_consolidated_report(stats, entry_name_for_title, file_identifier, output_dir=None, prefix=""):
+    """
+    統合された結果のレポートを生成し、サマリテキストファイルとして保存する。
+    レポート内のタイトルには entry_name_for_title を、ファイル名には file_identifier を使用する。
+    """
     summary_lines = []
 
     def format_rate(rate): return f"{rate:.2%}" if pd.notna(rate) and isinstance(rate, (int, float)) else "N/A"
-    def format_count(correct, total): return f"{correct} / {total}" if pd.notna(correct) and pd.notna(total) and total > 0 else "N/A" if total == 0 else f"{correct} / {total}"
+    def format_count(correct, total): return f"{correct} / {total}" if pd.notna(correct) and pd.notna(total) and total >= 0 else "N/A"
     def format_score(score, possible):
          if not (pd.notna(score) and pd.notna(possible)): return "N/A"
-         if possible == 0: return "N/A (0点満点)"
          score_str = f"{int(score)}" if score == int(score) else f"{score:.1f}"
          possible_str = f"{int(possible)}" if possible == int(possible) else f"{possible:.1f}"
+         if possible == 0: return f"{score_str} / {possible_str} (0点満点)"
          return f"{score_str} / {possible_str}"
 
-    summary_lines.append(f"===== モデルエントリー: {entry_name} の結果 =====") # モデル名 -> モデルエントリー名
+    # レポートタイトルには entry_name_for_title を使用
+    summary_lines.append(f"===== モデルエントリー: {entry_name_for_title} の結果 =====")
+    summary_lines.append(f"(ファイル識別子: {file_identifier})") # 参考情報としてファイル識別子も追記
     summary_lines.append("")
 
+    total_data = stats.get('total', {})
+    general_data = stats.get('general', {})
+    required_data = stats.get('required', {})
+    no_image_data = stats.get('no_image', {})
+    no_image_general_data = no_image_data.get('general', {}) if isinstance(no_image_data, dict) else {}
+    no_image_required_data = no_image_data.get('required', {}) if isinstance(no_image_data, dict) else {}
+
     sections = {
-        "全体": stats['total'],
-        "一般問題 (A,C,D,F)": stats['general'],
-        "必修問題 (B,E)": stats['required'],
-        "画像なし - 全体": stats['no_image'],
-        "画像なし - 一般問題 (A,C,D,F)": stats['no_image']['general'],
-        "画像なし - 必修問題 (B,E)": stats['no_image']['required'],
+        "全体": total_data,
+        "一般問題 (A,C,D,F)": general_data,
+        "必修問題 (B,E)": required_data,
+        "画像なし - 全体": no_image_data,
+        "画像なし - 一般問題 (A,C,D,F)": no_image_general_data,
+        "画像なし - 必修問題 (B,E)": no_image_required_data,
     }
 
     for title, data in sections.items():
-        # data が None または 辞書でない場合のチェックを追加
         if data and isinstance(data, dict):
             summary_lines.append(f"--- {title} ---")
             summary_lines.append(f"  正解数/問題数: {format_count(data.get('correct'), data.get('total'))}")
@@ -455,8 +464,8 @@ def generate_consolidated_report(stats, entry_name, output_dir=None, prefix=""):
 
     def add_block_results(title, acc_dict, sr_dict):
         summary_lines.append(title)
-        if not isinstance(acc_dict, dict): acc_dict = {}
-        if not isinstance(sr_dict, dict): sr_dict = {}
+        acc_dict = acc_dict if isinstance(acc_dict, dict) else {}
+        sr_dict = sr_dict if isinstance(sr_dict, dict) else {}
         all_blocks = sorted(list(set(acc_dict.keys()) | set(sr_dict.keys())))
         if not all_blocks:
              summary_lines.append("  (ブロックデータなし)")
@@ -468,17 +477,19 @@ def generate_consolidated_report(stats, entry_name, output_dir=None, prefix=""):
         summary_lines.append("")
 
     add_block_results("--- ブロック別結果 (全体) ---", stats.get('block_accuracies', {}), stats.get('block_score_rates', {}))
-    no_image_stats = stats.get('no_image', {})
-    add_block_results("--- 画像なしのブロック別結果 ---", no_image_stats.get('block_accuracies', {}) if isinstance(no_image_stats, dict) else {}, no_image_stats.get('block_score_rates', {}) if isinstance(no_image_stats, dict) else {})
+    no_image_block_acc = no_image_data.get('block_accuracies', {}) if isinstance(no_image_data, dict) else {}
+    no_image_block_sr = no_image_data.get('block_score_rates', {}) if isinstance(no_image_data, dict) else {}
+    add_block_results("--- 画像なしのブロック別結果 ---", no_image_block_acc, no_image_block_sr)
 
     summary = "\n".join(summary_lines)
+    print("\n--- 統合サマリ ---") # コンソール出力の見出しを修正
     print(summary)
 
     if output_dir:
         output_path = Path(output_dir)
         output_path.mkdir(exist_ok=True, parents=True)
-        # サマリファイル名に entry_name を含める
-        summary_file = output_path / f"{prefix}{entry_name}_summary.txt"
+        # ファイル名には file_identifier を使用
+        summary_file = output_path / f"{prefix}{file_identifier}_summary.txt"
         try:
             with open(summary_file, "w", encoding="utf-8") as f:
                 f.write(summary)
@@ -487,9 +498,8 @@ def generate_consolidated_report(stats, entry_name, output_dir=None, prefix=""):
             print(f"エラー: サマリファイル '{summary_file}' の書き込み中にエラーが発生しました: {e}")
 
 
-# --- Leaderboard 機能 (変更なし、model_nameをentry_nameとして受け取るようにする) ---
-
-def update_leaderboard_data(data_file, entry_name, stats): # model_name -> entry_name
+# --- Leaderboard 機能 ---
+def update_leaderboard_data(data_file, entry_name, stats):
     """
     LeaderboardデータをJSONファイルで更新または新規作成する。
     """
@@ -512,8 +522,7 @@ def update_leaderboard_data(data_file, entry_name, stats): # model_name -> entry
 
     def get_stat_values(category_stats):
         if not category_stats or not isinstance(category_stats, dict):
-            return { 'score': 0.0, 'possible_score': 0.0, 'score_rate': 0.0, 'correct': 0, 'total': 0, 'accuracy': 0.0 } # デフォルト値変更
-        # .get() のデフォルト値を設定し、Noneの可能性を減らす
+            return { 'score': 0.0, 'possible_score': 0.0, 'score_rate': 0.0, 'correct': 0, 'total': 0, 'accuracy': 0.0 }
         return {
             'score': category_stats.get('score', 0.0),
             'possible_score': category_stats.get('possible_score', 0.0),
@@ -524,7 +533,9 @@ def update_leaderboard_data(data_file, entry_name, stats): # model_name -> entry
         }
 
     overall_stats = get_stat_values(stats.get('total'))
-    no_image_stats = get_stat_values(stats.get('no_image')) # no_image 自体が存在しない可能性も考慮
+    no_image_top_level = stats.get('no_image')
+    no_image_stats = get_stat_values(no_image_top_level) if isinstance(no_image_top_level, dict) else get_stat_values({})
+
 
     model_entry = {
         "overall_score": overall_stats['score'],
@@ -541,48 +552,41 @@ def update_leaderboard_data(data_file, entry_name, stats): # model_name -> entry
         "no_image_accuracy": no_image_stats['accuracy'],
     }
 
-    # NaN値の処理 (get_stat_valuesでデフォルト値設定したので基本不要だが念のため)
     for key, value in model_entry.items():
         if pd.isna(value):
-            model_entry[key] = 0.0 if 'rate' in key or 'accuracy' in key else 0
+            model_entry[key] = 0.0 if isinstance(value, float) else 0
 
-    leaderboard_data[entry_name] = model_entry # model_name -> entry_name
+    leaderboard_data[entry_name] = model_entry
 
     try:
         data_path.parent.mkdir(parents=True, exist_ok=True)
-        # NaNを許容しない設定でダンプ
         with open(data_path, 'w', encoding='utf-8') as f:
             json.dump(leaderboard_data, f, indent=4, ensure_ascii=False, allow_nan=False)
         print(f"Leaderboardデータを {data_file} に保存/更新しました。")
     except TypeError as e:
-         # NaNが原因の場合のエラーメッセージを確認
-        if 'Out of range float values are not JSON compliant' in str(e) or 'NaN' in str(e):
+        if 'Out of range float values are not JSON compliant' in str(e) or 'NaN' in str(e) or 'Infinity' in str(e):
             print(f"エラー: JSONシリアライズ中に非準拠の浮動小数点値(NaN/Infinity)が検出されました。0に置換して再試行します。")
-            # NaN/InfinityをNoneに置換してからNoneを0に置換するなどの処理が必要
             def replace_nan_inf(obj):
                 if isinstance(obj, dict):
                     return {k: replace_nan_inf(v) for k, v in obj.items()}
                 elif isinstance(obj, list):
                     return [replace_nan_inf(elem) for elem in obj]
-                elif isinstance(obj, float) and (pd.isna(obj) or obj == float('inf') or obj == float('-inf')):
-                    return 0.0 # NaNやInfinityを0.0に置換
+                elif isinstance(obj, float) and (pd.isna(obj) or abs(obj) == float('inf')):
+                    return 0.0
                 return obj
             try:
                 cleaned_data = replace_nan_inf(leaderboard_data)
                 with open(data_path, 'w', encoding='utf-8') as f:
                     json.dump(cleaned_data, f, indent=4, ensure_ascii=False, allow_nan=False)
                 print(f"Leaderboardデータを {data_file} に保存/更新しました (非準拠値を0に置換)。")
-            except Exception as e:
-                 print(f"エラー: 非準拠値置換後のJSON書き込み中に再度エラーが発生しました: {e}")
-
+            except Exception as inner_e:
+                 print(f"エラー: 非準拠値置換後のJSON書き込み中に再度エラーが発生しました: {inner_e}")
         else:
-            print(f"エラー: JSONシリアライズ中に予期せぬ型エラーが発生しました: {e}")
-
+             print(f"エラー: JSONシリアライズ中に予期せぬ型エラーが発生しました: {e}")
     except Exception as e:
         print(f"エラー: {data_file} への書き込み中にエラーが発生しました: {e}")
 
     return leaderboard_data
-
 
 def generate_leaderboard_markdown(leaderboard_data):
     """
@@ -595,28 +599,21 @@ def generate_leaderboard_markdown(leaderboard_data):
         scores_dict = item[1]
         if not isinstance(scores_dict, dict): return -float('inf')
         score_rate = scores_dict.get('overall_score_rate')
-        # score_rateが有効な数値か確認 (Noneや非数値を弾く)
         if isinstance(score_rate, (int, float)) and pd.notna(score_rate):
             return score_rate
         else:
-            # NoneやNaNの場合は得点率0点として扱うか、別の指標(Accuracyなど)でソートするか検討
-            # ここでは最低値扱い
              return -float('inf')
 
     try:
-        if isinstance(leaderboard_data, dict):
-            sorted_entries = sorted(leaderboard_data.items(), key=sort_key, reverse=True) # sorted_models -> sorted_entries
-        else:
-            print("エラー: Leaderboardデータが辞書形式ではありません。")
-            return "_(Error: Leaderboard data is not a dictionary)_"
+        sorted_entries = sorted(leaderboard_data.items(), key=sort_key, reverse=True)
     except Exception as e:
         print(f"エラー: Leaderboardデータのソート中にエラー: {e}")
         return "_(Error generating leaderboard during sorting)_"
 
     def format_lb_cell(value, total, rate):
-        value_valid = isinstance(value, (int, float)) and pd.notna(value)
-        total_valid = isinstance(total, (int, float)) and pd.notna(total)
-        rate_valid = isinstance(rate, (int, float)) and pd.notna(rate)
+        value_valid = pd.notna(value) and isinstance(value, (int, float))
+        total_valid = pd.notna(total) and isinstance(total, (int, float))
+        rate_valid = pd.notna(rate) and isinstance(rate, (int, float))
 
         if not total_valid or total == 0: return "N/A"
         if not value_valid: value_str = "?"
@@ -626,16 +623,15 @@ def generate_leaderboard_markdown(leaderboard_data):
         else: rate_str = f"{rate:.2%}"
         return f"{value_str}/{total_str} ({rate_str})"
 
-    # ヘッダー修正: Model -> Entry
     headers = ["Rank", "Entry", "Overall Score (Rate)", "Overall Acc.", "No-Img Score (Rate)", "No-Img Acc."]
     header_line = "| " + " | ".join(headers) + " |"
     separator_line = "|-" + "-|".join(['-' * len(h) for h in headers]) + "-|"
 
     table_lines = [header_line, separator_line]
-    for rank, (entry_name, scores) in enumerate(sorted_entries, 1): # model_name -> entry_name
+    for rank, (entry_name, scores) in enumerate(sorted_entries, 1):
          if not isinstance(scores, dict):
-             print(f"警告: エントリー '{entry_name}' のデータが不正です。スキップします。")
-             row_values = ["N/A"] * (len(headers) - 2)
+             print(f"警告: エントリー '{entry_name}' のデータが不正です。Leaderboard表示をスキップします。")
+             row_values = ["Error"] * (len(headers) - 2)
          else:
              row_values = [
                  format_lb_cell(scores.get('overall_score'), scores.get('overall_possible_score'), scores.get('overall_score_rate')),
@@ -643,7 +639,7 @@ def generate_leaderboard_markdown(leaderboard_data):
                  format_lb_cell(scores.get('no_image_score'), scores.get('no_image_possible_score'), scores.get('no_image_score_rate')),
                  format_lb_cell(scores.get('no_image_correct'), scores.get('no_image_total'), scores.get('no_image_accuracy')),
              ]
-         safe_entry_name = str(entry_name).replace("|", "\\|") # entry_nameをエスケープ
+         safe_entry_name = str(entry_name).replace("|", "\\|")
          row = [str(rank), safe_entry_name] + row_values
          table_lines.append("| " + " | ".join(row) + " |")
 
@@ -664,26 +660,36 @@ def update_readme(readme_path_str, markdown_table):
             if LEADERBOARD_START_MARKER in line: start_index = i
             elif LEADERBOARD_END_MARKER in line:
                 end_index = i
-                if start_index != -1 and start_index < end_index: break
+                if start_index != -1 and start_index < end_index:
+                     break
 
         if start_index != -1 and end_index != -1 and start_index < end_index:
-            new_lines = lines[:start_index + 1] + [""] + [markdown_table] + [""] + lines[end_index:]
+            new_lines = lines[:start_index + 1]
+            new_lines.append("")
+            new_lines.append(markdown_table)
+            new_lines.append("")
+            new_lines.extend(lines[end_index:])
+
             new_content = "\n".join(new_lines)
             if not new_content.endswith('\n'): new_content += '\n'
             readme_path.write_text(new_content, encoding='utf-8')
             print(f"READMEファイル ({readme_path}) のLeaderboardを更新しました。")
         else:
-             missing = [m for m, i in [(LEADERBOARD_START_MARKER, start_index), (LEADERBOARD_END_MARKER, end_index)] if i == -1 or not (start_index != -1 and start_index < end_index)]
-             print(f"警告: READMEファイル ({readme_path}) に有効なLeaderboardマーカーペアが見つかりません。")
-             print(f"       必要なマーカー: {LEADERBOARD_START_MARKER} と {LEADERBOARD_END_MARKER} (この順序で)")
-             if missing: print(f"       見つからなかった/順序不正マーカー: {missing}")
+             missing_markers = []
+             if start_index == -1: missing_markers.append(LEADERBOARD_START_MARKER)
+             if end_index == -1: missing_markers.append(LEADERBOARD_END_MARKER)
+             if start_index != -1 and end_index != -1 and start_index >= end_index:
+                 print(f"警告: READMEファイル ({readme_path}) のLeaderboardマーカーの順序が不正です。")
+             elif missing_markers:
+                 print(f"警告: READMEファイル ({readme_path}) にLeaderboardマーカーが見つかりません: {', '.join(missing_markers)}")
+             print(f"       必要なマーカー: {LEADERBOARD_START_MARKER} と {LEADERBOARD_END_MARKER} (この順序で別々の行に)")
              print(f"       READMEは更新されませんでした。")
 
     except Exception as e:
         print(f"エラー: READMEファイル '{readme_path}' の更新中にエラーが発生しました: {e}")
 
 
-# --- main関数 (修正版) ---
+# --- main関数 (ファイル名生成部分を修正) ---
 
 def main():
     parser = argparse.ArgumentParser(
@@ -693,15 +699,18 @@ def main():
     parser.add_argument('--answers_path', '-a', default='results/correct_answers.csv',
                         help='正解データのパス（CSVまたはPickle）')
     parser.add_argument('--output', '-o', default='./results',
-                        help='統合レポートファイル（CSV, PNG, TXT）の出力先ディレクトリ')
+                        help='統合レポートファイル（CSV, PNG, TXT, スキップリスト）の出力先ディレクトリ')
     parser.add_argument('--readme', default='README.md',
                         help='更新するREADMEファイルのパス')
     parser.add_argument('--leaderboard_data', default='results/leaderboard.json',
                         help='Leaderboardデータを保存/更新するJSONファイルのパス')
     parser.add_argument('--entry_name', '-e', default=None,
-                        help='Leaderboardで使用するエントリー名。指定されない場合はJSONファイル名や内容から推測します。シェル変数 ENTRY_NAME の値などを渡すことを想定。')
+                        help='Leaderboardやレポートタイトルで使用するエントリー名。指定されない場合はJSONファイル名や内容から推測。')
     parser.add_argument('--json_paths', '-j', nargs='+', required=True,
-                        help='モデル解答のJSONファイルへのパス（複数指定可能、例: results/119A_modelX.json results/119B_modelX.json ...）')
+                        help='モデル解答のJSONファイルへのパス（複数指定可能、例: results/119A_my-exp.json ...）')
+    parser.add_argument('--skipped_output_file', default=None,
+                        help='スキップされた問題番号を出力するファイル名。指定しない場合は、outputディレクトリに"{prefix}{file_identifier}_skipped.txt"として自動生成。')
+
 
     args = parser.parse_args()
 
@@ -709,6 +718,7 @@ def main():
     processed_blocks = set()
     base_numbers_from_files = set()
     first_valid_json_path = None
+    first_file_identifier = None # ファイル名から推測する識別子 (--exp 相当)
 
     # JSONパスの検証と情報抽出
     for path_str in args.json_paths:
@@ -721,11 +731,15 @@ def main():
             continue
 
         valid_json_paths.append(str(path))
+        filename = path.stem # 拡張子なしのファイル名 (例: 119A_my-exp)
+        parts = filename.split('_', 1) # 最初の '_' で分割
+
         if first_valid_json_path is None:
             first_valid_json_path = path
+            # 最初の有効なファイルからファイル識別子を推測
+            if len(parts) > 1:
+                first_file_identifier = parts[1] # 例: my-exp
 
-        filename = path.stem
-        parts = filename.split('_', 1)
         base_number_with_block = parts[0] if parts else ""
 
         block_id = ""
@@ -733,26 +747,39 @@ def main():
         if base_number_with_block and len(base_number_with_block) > 1 and base_number_with_block[-1].isalpha():
             block_id = base_number_with_block[-1].upper()
             base_number = base_number_with_block[:-1]
-            if block_id in processed_blocks:
-                 print(f"警告: ブロック {block_id} が複数回指定されています ({path.name})。")
-            processed_blocks.add(block_id)
+            if base_number.isdigit():
+                 if block_id in processed_blocks:
+                      print(f"警告: ブロック {block_id} (試験番号 {base_number}) が複数回指定されています ({path.name})。")
+                 processed_blocks.add(block_id)
+                 base_numbers_from_files.add(base_number)
+            else:
+                print(f"警告: ファイル名 {path.name} から有効な試験番号を特定できません ({base_number_with_block})。")
+
+        elif base_number_with_block.isdigit():
+             base_number = base_number_with_block
+             base_numbers_from_files.add(base_number)
+             print(f"情報: ファイル名 {path.name} にはブロックIDが含まれていません。試験番号 {base_number} として扱います。")
         else:
-             print(f"警告: ファイル名 {path.name} からブロックIDを特定できません。")
-        if base_number: base_numbers_from_files.add(base_number)
+             print(f"警告: ファイル名 {path.name} から試験番号やブロックIDを特定できません。")
+
 
     if not valid_json_paths:
         parser.error("処理可能なJSONファイルが1つも見つかりませんでした。")
 
-    first_entry_name_from_file = None
-    if first_valid_json_path:
-        first_filename_parts = first_valid_json_path.stem.split('_', 1)
-        if len(first_filename_parts) > 1:
-            first_entry_name_from_file = first_filename_parts[1] # ファイル名からのエントリー名候補
+    # ファイル名から取得した識別子、なければデフォルト値
+    file_identifier = first_file_identifier or "UnknownExp"
+    print(f"情報: レポートファイル名に使用する識別子: '{file_identifier}'")
+
 
     if len(base_numbers_from_files) > 1:
-        print(f"警告: 複数の試験番号がファイル名に含まれています: {base_numbers_from_files}。レポートのプレフィックスには最初のファイル ({first_valid_json_path.name if first_valid_json_path else 'N/A'}) の値を使用します。")
+        print(f"警告: 複数の試験番号がファイル名に含まれています: {sorted(list(base_numbers_from_files))}。")
+        print(f"       レポートのプレフィックスには、最初のファイルから取得した '{list(base_numbers_from_files)[0]}' を使用します。")
     elif not base_numbers_from_files:
-        print(f"警告: ファイル名から試験番号を特定できませんでした。")
+        print(f"警告: ファイル名から試験番号を特定できませんでした。レポートプレフィックスは 'UnknownNumber_' になります。")
+
+    report_base_number = list(base_numbers_from_files)[0] if base_numbers_from_files else "UnknownNumber"
+    consolidated_prefix = f"{report_base_number}_" # 例: 119_
+
 
     try:
         correct_df = load_correct_answers(args.answers_path)
@@ -764,6 +791,7 @@ def main():
 
     all_results_dfs = []
     first_model_name_from_json = None
+    all_skipped_questions = []
 
     for i, json_path_str in enumerate(valid_json_paths):
         json_path = Path(json_path_str)
@@ -771,19 +799,28 @@ def main():
 
         try:
             model_data = load_model_answers(json_path_str)
-            results_df, accuracy, model_name_in_current_json = grade_answers(model_data, correct_df)
+            results_df, accuracy, model_name_in_current_json, skipped_q = grade_answers(model_data, correct_df)
 
-            if results_df.empty:
-                print(f"情報: {json_path.name} から有効な採点結果が得られませんでした。スキップします。")
+            has_results = not results_df.empty
+            has_skipped = bool(skipped_q)
+
+            if not has_results and not has_skipped:
+                print(f"情報: {json_path.name} から有効な採点結果もスキップ情報も得られませんでした。")
                 continue
+            elif not has_results and has_skipped:
+                print(f"情報: {json_path.name} から有効な採点結果はありませんでしたが、スキップされた問題がありました: {skipped_q}")
+            elif has_results and has_skipped:
+                 print(f"情報: {json_path.name} の処理中にスキップされた問題がありました: {skipped_q}")
 
-            if first_model_name_from_json is None and model_name_in_current_json:
+            if first_model_name_from_json is None and model_name_in_current_json and model_name_in_current_json != 'UnknownModel':
                  first_model_name_from_json = model_name_in_current_json
 
-            # 個別レポートの要約をコンソールに表示 (ファイル出力はしない)
-            print_individual_report_summary(results_df, accuracy, json_path.name)
+            if has_results:
+                print_individual_report_summary(results_df, accuracy, json_path.name)
+                all_results_dfs.append(results_df)
 
-            all_results_dfs.append(results_df)
+            if has_skipped:
+                all_skipped_questions.extend(skipped_q)
 
         except (FileNotFoundError, json.JSONDecodeError, ValueError) as e:
             print(f"エラー: {json_path.name} の処理中にエラーが発生しました: {e}。このファイルはスキップします。")
@@ -793,58 +830,96 @@ def main():
              continue
 
 
+    # --- Leaderboard用エントリー名の決定 ---
+    effective_entry_name = "UnknownEntry" # デフォルト値
+    if args.entry_name:
+        effective_entry_name = args.entry_name
+        print(f"\n情報: コマンドライン引数からLeaderboard/レポートタイトル用エントリー名 '{effective_entry_name}' を使用します。")
+    elif first_file_identifier: # ファイル識別子をエントリー名の候補とする (以前の実装に近い挙動)
+        effective_entry_name = file_identifier
+        print(f"\n情報: ファイル名から推測した識別子 '{effective_entry_name}' をLeaderboard/レポートタイトル用エントリー名として使用します。")
+    elif first_model_name_from_json:
+        effective_entry_name = first_model_name_from_json
+        print(f"\n情報: 最初のJSONファイルの 'model' フィールドからエントリー名 '{effective_entry_name}' をLeaderboard/レポートタイトル用に使用します。")
+    else:
+        print("\n警告: Leaderboard/レポートタイトルで使用するエントリー名を特定できませんでした。'UnknownEntry' として扱います。")
+
+
+    # --- スキップされた問題番号のファイル出力 ---
+    unique_skipped_questions = sorted(list(set(all_skipped_questions)))
+
+    if unique_skipped_questions:
+        output_path = Path(args.output)
+        output_path.mkdir(exist_ok=True, parents=True)
+
+        if args.skipped_output_file:
+            skipped_file_path = Path(args.skipped_output_file)
+            skipped_file_path.parent.mkdir(parents=True, exist_ok=True)
+        else:
+            # ファイル名には file_identifier を使用
+            skipped_file_name = f"{consolidated_prefix}{file_identifier}_skipped.txt"
+            skipped_file_path = output_path / skipped_file_name
+
+        print(f"\n--- スキップされた問題番号 ({len(unique_skipped_questions)} 件) をファイルに出力 ---")
+        try:
+            with open(skipped_file_path, 'w', encoding='utf-8') as f:
+                for q_num in unique_skipped_questions:
+                    f.write(f"{q_num}\n")
+            print(f"スキップされた問題番号を {skipped_file_path} に保存しました。")
+            print("これらの問題を再実行するには、以下のコマンドを使用します（パスやモデル名、exp名を適宜変更してください）:")
+            # 再実行コマンド例では file_identifier を --exp に使うことを示唆
+            print(f"  uv run main.py <INPUT_JSON_PATH> --models <YOUR_MODEL_NAME> --questions $(cat '{skipped_file_path}') --exp {file_identifier}_retry")
+            print(f"  注意: <INPUT_JSON_PATH> には、スキップされた問題が含まれるJSONファイル（例: questions/{report_base_number}A_json.json など）を指定してください。")
+            print(f"        必要に応じて、問題をブロックごとに分けて再実行してください。")
+
+        except Exception as e:
+            print(f"エラー: スキップされた問題番号のファイル '{skipped_file_path}' の書き込み中にエラー: {e}")
+    else:
+        if all_results_dfs:
+             print("\nスキップされた問題はありませんでした。")
+
+
+    # --- 統合処理とレポート生成 ---
     if not all_results_dfs:
-        print("\n有効な処理結果がなかったため、統合レポートとLeaderboard更新をスキップします。")
+        print("\n有効な採点結果がなかったため、統合レポートとLeaderboard更新をスキップします。")
         return
 
     print("\n--- 全ブロックの結果を統合中 ---")
     try:
         consolidated_stats = consolidate_results(all_results_dfs)
-        # 統合結果のDataFrameを取得 (ファイル出力用)
         consolidated_df = consolidated_stats.get('total', {}).get('df', pd.DataFrame())
     except Exception as e:
          print(f"エラー: 結果の統合処理中にエラーが発生しました: {e}。統合レポートとLeaderboard更新をスキップします。")
          return
 
-    # --- Leaderboard用エントリー名の決定 ---
-    effective_entry_name = None
-    
-    if first_entry_name_from_file:
-        effective_entry_name = first_entry_name_from_file
-        print(f"情報: 最初のJSONファイル名 ({first_valid_json_path.name if first_valid_json_path else 'N/A'}) から推測したエントリー名 '{effective_entry_name}' をLeaderboardに使用します。")
-    elif first_model_name_from_json: # JSON内のモデル名をフォールバックとして使用
-        effective_entry_name = first_model_name_from_json
-        print(f"情報: 最初のJSONファイルの 'model' フィールドからエントリー名 '{effective_entry_name}' をLeaderboardに使用します。")
-    else:
-        effective_entry_name = "UnknownEntry"
-        print("警告: Leaderboardで使用するエントリー名を特定できませんでした。'UnknownEntry' として扱います。")
+    # 統合サマリ: タイトルに effective_entry_name、ファイル名に file_identifier を使用
+    generate_consolidated_report(
+        stats=consolidated_stats,
+        entry_name_for_title=effective_entry_name,
+        file_identifier=file_identifier,
+        output_dir=args.output,
+        prefix=consolidated_prefix
+    )
 
-
-    # --- 統合レポート生成 ---
-    first_base_number = list(base_numbers_from_files)[0] if base_numbers_from_files else "UnknownNumber"
-    # 統合レポートのプレフィックス (例: 119_)
-    consolidated_prefix = f"{first_base_number}_"
-
-    # 統合サマリをコンソール出力 & テキストファイル保存
-    generate_consolidated_report(consolidated_stats, effective_entry_name, args.output, consolidated_prefix)
-
-    # 統合ファイル（プロット、CSV）を生成
+    # 統合ファイル（プロット、CSV）: ファイル名に file_identifier を使用
     if not consolidated_df.empty:
-        generate_consolidated_files(consolidated_df, args.output, consolidated_prefix, effective_entry_name)
+        generate_consolidated_files(
+            consolidated_df=consolidated_df,
+            output_dir=args.output,
+            prefix=consolidated_prefix,
+            file_identifier=file_identifier
+        )
     else:
         print("情報: 統合DataFrameが空のため、統合ファイル (PNG, CSV) の生成をスキップします。")
 
 
     # --- Leaderboard 更新処理 ---
+    # Leaderboardのエントリー名には effective_entry_name を使用
     print("\n--- Leaderboard 更新 ---")
-    if args.entry_name:
-        effective_entry_name = args.entry_name
-        print(f"情報: コマンドライン引数から指定されたエントリー名 '{effective_entry_name}' をLeaderboardに使用します。")
-    elif effective_entry_name != "UnknownEntry":
-        print(f"情報: エントリー名 '{effective_entry_name}' をLeaderboardに使用します。")
-
     if effective_entry_name == "UnknownEntry":
-        print("警告: エントリー名を特定できなかったため、Leaderboard は更新されません。")
+        print("警告: Leaderboard用エントリー名を特定できなかったため、Leaderboard は更新されません。")
+    elif not consolidated_stats:
+         print("警告: 統合結果がないため、Leaderboard は更新されません。")
     else:
         try:
             leaderboard_data = update_leaderboard_data(args.leaderboard_data, effective_entry_name, consolidated_stats)

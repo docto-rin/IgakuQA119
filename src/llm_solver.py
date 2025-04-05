@@ -125,6 +125,16 @@ class LLMSolver:
                     "max_tokens": 1000
                 }
             },
+            "plamo-1.0-prime": {
+                "api_key": os.getenv("PLAMO_API_KEY"), # Use PLAMO_API_KEY environment variable
+                "base_url": "https://platform.preferredai.jp/api/completion/v1", # PLaMo API endpoint
+                "model_name": "plamo-1.0-prime", # Specific PLaMo model
+                "client_type": "openai", # OpenAI compatible API
+                "supports_vision": False, # PLaMo currently does not support vision
+                "system_role": "system", # Based on curl example
+                "system_prompt": self.system_prompt,
+                "parameters": {} # Add any specific PLaMo parameters here if needed
+            },
             # Geminiの柔軟な指定用エントリー
             "gemini-flexible": {
                 "api_key": os.getenv("GEMINI_API_KEY"),
