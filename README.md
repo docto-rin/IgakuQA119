@@ -2,7 +2,7 @@
 
 ## Overview
 
-IgakuQA119 is a repository designed to evaluate the performance of Large Language Models (LLMs) using the 119th Japanese Medical Licensing Examination (JMLE). This project, inspired by the [nmle-rta](https://github.com/iKora128/nmle-rta/tree/main) repository, assesses LLMs' comprehension and application abilities within the context of Japan's latest medical licensing exam.
+IgakuQA119 is a repository designed to evaluate the performance of Large Language Models (LLMs) using the 119th Japanese Medical Licensing Examination (JMLE). This project, inspired by the [nmle-rta](https://github.com/iKora128/nmle-rta/tree/main) repository, assesses LLMs' comprehension and application abilities within the context of Japan's latest medical licensing exam. It supports evaluation using both cloud-based APIs (like OpenAI, Anthropic, Gemini) and local LLMs via Ollama.
 
 ## Leaderboard
 
@@ -33,20 +33,38 @@ uv sync
 
 ### 1.2 Setting Environment Variables
 
-Copy `.env.example` to `.env` and set required API keys:
+Copy `.env.example` to `.env` and set required API keys if you plan to use cloud-based LLMs:
 
 ```bash
 cp .env.example .env
-# Open .env and set necessary values (e.g., API keys)
+# Open .env and set necessary values (e.g., OPENAI_API_KEY, GEMINI_API_KEY)
 ```
+*(Note: Environment variables are not strictly required for basic Ollama usage unless you need to configure a non-default Ollama host/port).*
+
+### 1.3 Setting up Ollama (Optional, for Local LLMs)
+
+If you want to use local LLMs (including models from Hugging Face):
+1.  Install Ollama from [https://ollama.com/](https://ollama.com/).
+2.  Ensure the Ollama service is running.
+3.  Pull the desired model using the Ollama CLI (this might happen automatically when first referenced, depending on the model identifier used). For example:
+    ```bash
+    # Example for a specific Hugging Face GGUF model
+    ollama pull huggingface.co/mmnga/cyberagent-DeepSeek-R1-Distill-Qwen-32B-Japanese-gguf:Q4_K_M
+    # Or a standard Ollama model
+    ollama pull llama3
+    ```
 
 ## 2. Solving Questions with LLMs
 
-Example script to solve exam questions using an LLM:
+You can solve the exam questions using either cloud-based LLM APIs or local models run via Ollama.
+
+### 2.1 Example: Using a Cloud LLM (Gemini 2.5 Pro)
 
 ```bash
+# Set variables for the experiment
 EXP="gemini-2.5-pro"
-MODEL_NAME="gemini-2.5-pro-exp-03-25" # Actual model name used by the API
+# Use the model key defined in llm_solver.py or a dynamic key like gemini-*
+MODEL_NAME="gemini-2.5-pro-exp-03-25"
 
 for suffix in A B C D E F; do
   uv run main.py "questions/119${suffix}_json.json" \
@@ -55,9 +73,37 @@ for suffix in A B C D E F; do
 done
 ```
 
+### 2.2 Example: Using a Local LLM via Ollama (Hugging Face Model)
+
+This example uses a specific GGUF model from Hugging Face, served locally via Ollama.
+
+**Prerequisite:** Ensure Ollama is installed and the service is running (see step 1.3). You might want to run the target model in a separate terminal first to ensure it's downloaded and ready, although the script might trigger the download if Ollama is configured correctly.
+
+```bash
+# Optional: Run in a separate terminal to pre-load the model
+# ollama run huggingface.co/mmnga/cyberagent-DeepSeek-R1-Distill-Qwen-32B-Japanese-gguf:Q4_K_M
+
+# Set variables for the experiment
+EXP="CA-DSR1-DQ32B-JP"
+# Specify the model using its Hugging Face identifier recognized by Ollama
+MODEL_NAME="huggingface.co/mmnga/cyberagent-DeepSeek-R1-Distill-Qwen-32B-Japanese-gguf:Q4_K_M"
+# Alternatively, use a standard Ollama model name like "ollama-llama3"
+
+# Run the evaluation script
+for suffix in A B C D E F; do
+  uv run main.py "questions/119${suffix}_json.json" \
+    --exp "119${suffix}_${EXP}" \
+    --models "${MODEL_NAME}"
+done
+```
+
+**Note on Ollama Model Names:**
+*   Use the full Hugging Face identifier (like `huggingface.co/user/repo:tag`) if Ollama supports it directly.
+*   Alternatively, use the `ollama-<model_name>` prefix (e.g., `ollama-llama3`, `ollama-mistral`) for standard models pulled via Ollama. The script automatically routes requests to your local Ollama instance (`http://localhost:11434/v1` by default) for these identifiers.
+
 ## 3. Grading Answers
 
-Example script for grading answers:
+Example script for grading answers generated in step 2:
 
 ```bash
 EXP="gemini-2.5-pro"
@@ -72,13 +118,16 @@ uv run grade_answers.py \
 
 ## 4. Handling Skipped Questions
 
-Occasionally, questions might be skipped during the initial run (e.g., due to API errors or timeouts). The following steps describe how to re-run only the skipped questions, merge the results with the original run, and then grade the complete set.
+Occasionally, questions might be skipped during the initial run (e.g., due to API errors, timeouts, or local model issues). The following steps describe how to re-run only the skipped questions, merge the results with the original run, and then grade the complete set.
 
 ### 4.1 Example Variable Setup
 
 ```bash
+# Original experiment suffix (cloud or local)
 EXP="gemini-2.0-flash"
+# Corresponding model name used
 MODEL_NAME="gemini-2.0-flash-exp"
+# Leaderboard entry name
 ENTRY_NAME="Gemini-2.0-Flash"
 
 # File listing skipped question IDs, typically generated during the initial run
