@@ -13,8 +13,9 @@ IgakuQA119 is a repository designed to evaluate the performance of Large Languag
 | 1 | Gemini-2.5-Pro | 485/500 (97.00%) | 389/400 (97.25%) | 372/383 (97.13%) | 290/297 (97.64%) |
 | 2 | Gemini-2.0-Flash | 436/500 (87.20%) | 352/400 (88.00%) | 333/383 (86.95%) | 263/297 (88.55%) |
 | 3 | CA-DSR1-DQ32B-JP | 376/500 (75.20%) | 292/400 (73.00%) | 295/383 (77.02%) | 223/297 (75.08%) |
-| 4 | Gemma-3-27B | 320/500 (64.00%) | 252/400 (63.00%) | 252/383 (65.80%) | 196/297 (65.99%) |
-| 5 | PLaMo-1.0-Prime | 211/500 (42.20%) | 175/400 (43.75%) | 156/383 (40.73%) | 126/297 (42.42%) |
+| 4 | CA-DSR1-DQ32B-JP-SFT | 366/500 (73.20%) | 286/400 (71.50%) | 290/383 (75.72%) | 224/297 (75.42%) |
+| 5 | Gemma-3-27B | 320/500 (64.00%) | 252/400 (63.00%) | 252/383 (65.80%) | 196/297 (65.99%) |
+| 6 | PLaMo-1.0-Prime | 211/500 (42.20%) | 175/400 (43.75%) | 156/383 (40.73%) | 126/297 (42.42%) |
 
 <!-- LEADERBOARD_END -->
 
@@ -116,11 +117,22 @@ uv run grade_answers.py \
 
 **This script automatically updates the Leaderboard section in this README file** with the consolidated results based on the processed JSON files.
 
-## 4. Handling Skipped Questions
+## 4. Comparing LLM Answers and Analysis
+
+Beyond basic grading, you can compare the incorrect answers between two different LLM experiments to analyze their differing strengths and weaknesses.
+
+The `scripts/compare_wrong_answers.py` script facilitates this by:
+- Identifying questions answered incorrectly by both models, or only by one.
+- Generating detailed comparison reports in CSV and Markdown formats (split by comparison type).
+- Optionally using a specified LLM (like Gemini or GPT-4o) to provide an analytical summary of the comparison.
+
+For detailed usage instructions, see the [Scripts README](./scripts/README.md).
+
+## 5. Handling Skipped Questions
 
 Occasionally, questions might be skipped during the initial run (e.g., due to API errors, timeouts, or local model issues). The following steps describe how to re-run only the skipped questions, merge the results with the original run, and then grade the complete set.
 
-### 4.1 Example Variable Setup
+### 5.1 Example Variable Setup
 
 ```bash
 # Original experiment suffix (cloud or local)
@@ -138,7 +150,7 @@ RERUN_EXP="${EXP}_retry"
 MERGED_EXP="${EXP}_merged"
 ```
 
-### 4.2 Workflow Commands for Skipped Questions
+### 5.2 Workflow Commands for Skipped Questions
 
 The following sequence of commands performs the complete workflow for handling skipped questions:
 1.  **Re-run Skipped:** Process only the questions listed in the `skipped_list` using `rerun_skipped.py`. The results will be saved with the `RERUN_EXP` suffix.
@@ -166,7 +178,7 @@ uv run grade_answers.py \
   --output results
 ```
 
-## License
+## 6. License
 
 This repository is licensed under the Apache License 2.0. For details, see the [LICENSE](LICENSE) file.
 

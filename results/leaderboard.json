@@ -68,5 +68,19 @@
         "no_image_correct": 126,
         "no_image_total": 297,
         "no_image_accuracy": 0.42424242424242425
+    },
+    "CA-DSR1-DQ32B-JP-SFT": {
+        "overall_score": 366.0,
+        "overall_possible_score": 500.0,
+        "overall_score_rate": 0.732,
+        "overall_correct": 286,
+        "overall_total": 400,
+        "overall_accuracy": 0.715,
+        "no_image_score": 290.0,
+        "no_image_possible_score": 383.0,
+        "no_image_score_rate": 0.7571801566579635,
+        "no_image_correct": 224,
+        "no_image_total": 297,
+        "no_image_accuracy": 0.7542087542087542
     }
 }
