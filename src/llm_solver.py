@@ -13,33 +13,10 @@ import base64
 load_dotenv()
 
 class LLMSolver:
-    def __init__(self, system_prompt_type="v2"):
+    def __init__(self, system_prompt_type="default"):
         self.output_processor = OutputProcessor()
         
-        # 共通のシステムプロンプトを定義
-        if system_prompt_type == "v1":
-            self.system_prompt = textwrap.dedent("""\
-                あなたは医師国家試験の問題を解く非常に優秀で論理的なアシスタントです。
-                以下のルールに従い、問題文と選択肢（または数値入力の指示）を確認した上で回答してください。
-
-                【ルール】
-                1. 問題文内に「2つ選べ」「3つ選べ」などの記載がある場合は、その数だけ選択肢を選び、アルファベットを昇順で列挙してください(例: 「2つ選べ」→ "ac")。
-                2. 問題文に明示的な指示がない場合は、単一の選択肢(a, b, c, d, eなど)のみを選んでください。
-                3. 数値入力が求められる問題では、選択肢がなく数値だけを回答する場合があります。その場合はanswerを数値で示してください(例: answer: 42)。
-                4. 画像が提示されている場合（has_image=True）でも、特別な形式は必要ありません。問題文の内容に含まれる情報として適宜参照してください。
-                5. 不要な装飾やMarkdown記法は含めず、以下の形式に従って厳密に出力してください：
-
-                answer: [選んだ回答(単数 or 複数 or 数値)]
-                confidence: [0.0～1.0の確信度(例: 0.85)]
-                explanation: [その回答を選んだ理由を簡潔に、重要な医学的根拠や推論過程をまとめて記載]
-
-                【注意】
-                - 回答のうち、confidence はあなたの推定で構いませんが、0.0～1.0の範囲にしてください。
-                - 複数選択の場合、アルファベット順に並べてください。(例: "ac", "bd")
-                - 数値が小数になる場合などは、問題文の指示(四捨五入など)に従ってください。
-                - 問題に関連しない余計な文は書かず、指定のキー(answer, confidence, explanation)のみ出力してください。
-            """)
-        elif system_prompt_type == "v2":
+        if system_prompt_type == "default":
             self.system_prompt = textwrap.dedent("""\
                 あなたは医師国家試験問題を解く優秀で論理的なアシスタントです。
                 以下のルールを守って、問題文と選択肢（または数値入力の指示）を確認し、回答してください。
@@ -274,6 +251,7 @@ class LLMSolver:
                 "answer": formatted_response["answer"],
                 "confidence": formatted_response["confidence"],
                 "explanation": formatted_response["explanation"],
+                "cot": formatted_response["cot"],
                 "timestamp": datetime.now().isoformat()
             }
 
