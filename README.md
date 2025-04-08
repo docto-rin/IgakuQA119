@@ -2,7 +2,7 @@
 
 ## Overview
 
-IgakuQA119 is a repository designed to evaluate the performance of Large Language Models (LLMs) using the 119th Japanese Medical Licensing Examination (JMLE). This project, inspired by the [nmle-rta](https://github.com/iKora128/nmle-rta/tree/main) repository, assesses LLMs' comprehension and application abilities within the context of Japan's latest medical licensing exam. It supports evaluation using both cloud-based APIs (like OpenAI, Anthropic, Gemini) and local LLMs via Ollama.
+IgakuQA119 is a repository designed to evaluate the performance of Large Language Models (LLMs) using the 119th Japanese Medical Licensing Examination (JMLE). This project, inspired by the [nmle-rta](https://github.com/iKora128/nmle-rta/tree/main) repository, assesses LLMs' comprehension and application abilities within the context of Japan's latest medical licensing exam. The dataset used for evaluation was obtained through a clean process, with details on acquisition provided [here](#dataset-acquisition). It supports evaluation using both cloud-based APIs (like OpenAI, Anthropic, Gemini) and local LLMs via Ollama.
 
 ## Leaderboard
 
@@ -178,8 +178,16 @@ uv run grade_answers.py \
   --output results
 ```
 
-## 6. License
+## Dataset Acquisition
+
+The question components of the dataset (question text, choices, images) were created by the author of the original repository ([nmle-rta](https://github.com/iKora128/nmle-rta/tree/main)) by processing PDFs of the actual exam questions using OCR. Direct permission was obtained from the original author to use and publish this data.
+
+The grading logic, including correct answers and handling of special cases like excluded questions, was developed by the author of this repository based on official information published by the Ministry of Health, Labour and Welfare (MHLW) of Japan: [第１１９回医師国家試験の合格発表について](https://www.mhlw.go.jp/general/sikaku/successlist/2025/siken01/about.html).
+
+All scripts used to create the complete dataset are publicly available in the `scripts/prepro_utils` directory of this repository for transparency.
+
+## License
 
 This repository is licensed under the Apache License 2.0. For details, see the [LICENSE](LICENSE) file.
 
-Original repository [nmle-rta](https://github.com/iKora128/nmle-rta/tree/main) is also licensed under Apache License 2.0 as authorized by the original author.
+The original repository [nmle-rta](https://github.com/iKora128/nmle-rta/tree/main) is also licensed under Apache License 2.0, as authorized by the original author.
