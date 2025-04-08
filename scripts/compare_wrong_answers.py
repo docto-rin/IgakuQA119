@@ -27,8 +27,7 @@ except ImportError:
     sys.exit(1)
 
 
-# --- ヘルパー関数 (変更なし) ---
-# load_wrong_answers_csv, load_answers_json, load_correct_answers
+# --- ヘルパー関数 ---
 
 def load_wrong_answers_csv(exp: str, results_dir: Path = Path("results")) -> set:
     """指定された実験の誤答CSVファイルを読み込み、誤答問題番号のセットを返す"""
@@ -49,6 +48,7 @@ def load_wrong_answers_csv(exp: str, results_dir: Path = Path("results")) -> set
         print(f"エラー: 誤答ファイル {csv_path} の読み込み中にエラーが発生しました: {e}", file=sys.stderr)
         return set()
 
+# ▼▼▼ `load_answers_json` 関数の修正 ▼▼▼
 def load_answers_json(exp: str, answers_dir: Path = Path("answers")) -> dict:
     """指定された実験の全ブロックの回答JSONを読み込み、問題番号をキーとする辞書を返す"""
     all_answers = {}
@@ -69,35 +69,44 @@ def load_answers_json(exp: str, answers_dir: Path = Path("answers")) -> dict:
                 for q_result in data["results"]:
                     q_num = q_result.get("question_number")
                     q_text = q_result.get("question_text", "")
+                    # ★★★ choicesとhas_imageを取得 ★★★
+                    choices = q_result.get("choices") # なければNoneになる
+                    has_image = q_result.get("has_image") # なければNoneになる
+
                     if not q_num:
                          print(f"警告: {json_file} 内に問題番号のないデータがあります。スキップします。", file=sys.stderr)
                          continue
 
-                    first_answer_data = {}
+                    answer_data = {}
                     if q_result.get("answers") and isinstance(q_result["answers"], list) and len(q_result["answers"]) > 0:
                         ans_data = q_result["answers"][0]
                         if "error" in ans_data:
-                             first_answer_data = {
+                             answer_data = {
                                  "answer": f"ERROR: {ans_data['error']}",
                                  "explanation": "",
-                                 "question_text": q_text
                              }
                         else:
-                            first_answer_data = {
+                            answer_data = {
                                 "answer": ans_data.get("answer", "N/A"),
                                 "explanation": ans_data.get("explanation", "N/A"),
-                                "question_text": q_text
                             }
                     else:
-                         first_answer_data = {
+                         answer_data = {
                              "answer": "No Answer Data",
                              "explanation": "",
-                             "question_text": q_text
                          }
+
+                    # ★★★ 辞書に情報を追加 ★★★
+                    full_q_data = {
+                        **answer_data, # answer, explanation を展開
+                        "question_text": q_text,
+                        "choices": choices,
+                        "has_image": has_image,
+                    }
 
                     if q_num in all_answers:
                         print(f"情報: 問題番号 {q_num} が複数のファイルに存在します。{json_file} のデータで上書きします。")
-                    all_answers[str(q_num)] = first_answer_data
+                    all_answers[str(q_num)] = full_q_data # 修正: full_q_dataを格納
 
         except FileNotFoundError:
             print(f"警告: 回答ファイルが見つかりません: {json_file}。スキップします。", file=sys.stderr)
@@ -107,6 +116,7 @@ def load_answers_json(exp: str, answers_dir: Path = Path("answers")) -> dict:
             print(f"エラー: 回答ファイル {json_file} の処理中に予期せぬエラーが発生しました: {e}", file=sys.stderr)
 
     return all_answers
+# ▲▲▲ `load_answers_json` 関数の修正 ▲▲▲
 
 def load_correct_answers(filepath: Path = Path("results/correct_answers.csv")) -> dict:
     """正解データを読み込み、問題番号をキーとする辞書を返す"""
@@ -124,8 +134,7 @@ def load_correct_answers(filepath: Path = Path("results/correct_answers.csv")) -
         return {}
 
 
-# --- 分析・レポート生成関数 (generate_markdown_reportは変更なし) ---
-# analyze_single_choice_errors, generate_markdown_report
+# --- 分析・レポート生成関数 ---
 
 def analyze_single_choice_errors(df: pd.DataFrame, exp1: str, exp2: str) -> Counter:
     """両モデルが誤答した単数選択問題の誤答パターンを集計する"""
@@ -151,6 +160,7 @@ def analyze_single_choice_errors(df: pd.DataFrame, exp1: str, exp2: str) -> Coun
 
     return error_patterns
 
+# ▼▼▼ `generate_markdown_report` 関数の修正 ▼▼▼
 def generate_markdown_report(
     df_filtered: pd.DataFrame, # 特定の比較タイプでフィルタリングされたDF
     exp1: str,
@@ -193,13 +203,40 @@ def generate_markdown_report(
         report_lines.append("該当する問題はありませんでした。")
     else:
         # question_number でソート
-        df_sorted = df_filtered.sort_values("question_number")
+        # ★★★ 'question_number' カラムの型を数値として扱えるように変換を試みる ★★★
+        try:
+             # 例: '119A1' -> 11901, '119I10' -> 119910
+             def qnum_to_sortkey(qnum):
+                 import re
+                 match = re.match(r'(\d+)([A-I])(\d+)', qnum)
+                 if match:
+                     block = ord(match.group(2)) - ord('A') # A=0, B=1, ...
+                     # 文字コード順なので block (0-8) を考慮し、番号と組み合わせてソートキー生成
+                     # 十分大きな係数をかけることで、番号の大小を優先
+                     # 例: 119A1 -> 119 * 100000 + 0 * 1000 + 1 = 11900001
+                     # 例: 119I10 -> 119 * 100000 + 8 * 1000 + 10 = 11908010
+                     return int(match.group(1)) * 100000 + block * 1000 + int(match.group(3))
+                 try:
+                      return int(qnum) # 数字だけの場合
+                 except:
+                      return float('inf') # 想定外の形式は最後に
+
+             df_filtered['sort_key'] = df_filtered['question_number'].apply(qnum_to_sortkey)
+             df_sorted = df_filtered.sort_values('sort_key').drop(columns=['sort_key'])
+        except Exception as e:
+             print(f"警告: 問題番号のソート中にエラーが発生しました。文字列としてソートします。エラー: {e}")
+             df_sorted = df_filtered.sort_values("question_number")
+
+        # df_sorted = df_filtered.sort_values("question_number") # 元のソート
         wrapper = textwrap.TextWrapper(width=80, replace_whitespace=False, drop_whitespace=False)
 
         for _, row in df_sorted.iterrows():
             q_num = row['question_number']
             correct = row['correct_answer']
             q_text = row.get('question_text', '問題文不明')
+            # ★★★ choicesとhas_imageを取得 ★★★
+            choices = row.get('choices') # DataFrameになければNone
+            has_image = row.get('has_image') # DataFrameになければNone
             ans1 = row[f'{exp1}_answer']
             exp1_expl = row[f'{exp1}_explanation'] if pd.notna(row[f'{exp1}_explanation']) else ""
             ans2 = row[f'{exp2}_answer']
@@ -207,10 +244,37 @@ def generate_markdown_report(
 
             report_lines.append(f"### 問題: {q_num}") # 見出しレベルを上げる
             report_lines.append(f"- **正解:** `{correct}`")
+            # ★★★ 画像情報の表示 ★★★
+            if has_image is not None:
+                image_status = "あり" if has_image else "なし"
+                report_lines.append(f"- **画像:** {image_status}")
+            else:
+                report_lines.append(f"- **画像:** 不明")
+
             report_lines.append(f"- **問題文:**")
             report_lines.append("```")
             report_lines.extend(wrapper.wrap(q_text))
             report_lines.append("```")
+
+            # ★★★ 選択肢の表示 ★★★
+            if choices and isinstance(choices, list):
+                report_lines.append("- **選択肢:**")
+                for choice in choices:
+                    # 選択肢が辞書形式 ({'a': 'テキスト'}) か単純な文字列かで分岐 (より頑健に)
+                    if isinstance(choice, dict) and len(choice) == 1:
+                        key = list(choice.keys())[0]
+                        value = choice[key]
+                        report_lines.append(f"  - `{key}`: {value}")
+                    elif isinstance(choice, str):
+                         # 'a. テキスト' のような形式を想定
+                         report_lines.append(f"  - {choice}")
+                    else:
+                        report_lines.append(f"  - {str(choice)} (形式不明)") # 想定外の形式の場合
+            elif choices: # リストではないがNoneでもない場合
+                report_lines.append("- **選択肢:** (形式不正または取得失敗)")
+                report_lines.append(f"  ```\n{choices}\n```") # そのまま表示
+            # else: # choicesがNoneの場合は何も表示しない
+
             report_lines.append(f"- **{exp1} の回答:** `{ans1}`")
             if exp1_expl:
                 report_lines.append(f"  - **説明 ({exp1}):**")
@@ -224,15 +288,6 @@ def generate_markdown_report(
                 report_lines.extend(["  " + line for line in wrapper.wrap(exp2_expl)])
                 report_lines.append("  ```")
 
-            # --- (オプション) 説明文の差分表示 ---
-            # if comparison_type_title == 'Both Wrong' and exp1_expl and exp2_expl:
-            #     report_lines.append(f"  - **説明文の差分:**")
-            #     diff = difflib.ndiff(exp1_expl.splitlines(), exp2_expl.splitlines())
-            #     report_lines.append("  ```diff")
-            #     report_lines.extend([line for line in diff if line.strip()])
-            #     report_lines.append("  ```")
-            # ------------------------------------
-
             report_lines.append("---")
             report_lines.append("")
 
@@ -244,10 +299,11 @@ def generate_markdown_report(
         print(f"Markdownレポート ({comparison_type_title}) を {output_md_path} に保存しました。")
     except Exception as e:
          print(f"エラー: Markdownレポート ({comparison_type_title}) の書き込み中にエラーが発生しました: {e}", file=sys.stderr)
+# ▲▲▲ `generate_markdown_report` 関数の修正 ▲▲▲
 
 
 # --- ★★★ 新しい関数 (LLM分析用) ★★★ ---
-
+# (変更なし)
 def read_markdown_files(md_files: list[Path]) -> str:
     """複数のMarkdownファイルの内容を読み込んで結合する"""
     combined_content = ""
@@ -273,7 +329,7 @@ def generate_llm_analysis_prompt(exp1: str, exp2: str, combined_report_content: 
 【背景情報】
 - 分析対象は、日本の医師国家試験（第119回）の問題に対する2つのLLM（{exp1}, {exp2}）の回答結果です。
 - これから提示するレポートには、両モデルが誤答した問題、{exp1}のみが誤答した問題、{exp2}のみが誤答した問題の詳細が含まれています。
-- レポートには、問題番号、正解、各モデルの回答、および可能であれば回答理由（説明）が含まれます。
+- レポートには、問題番号、正解、画像有無、問題文、選択肢、各モデルの回答、および可能であれば回答理由（説明）が含まれます。 # ★★★ choices, has_imageへの言及を追加 ★★★
 - 「両モデル共通誤答のパターン (単数選択問題)」セクションには、特に両モデルが同じように間違えた選択肢のパターンがまとめられています。
 
 【誤答比較レポートの内容】
@@ -283,21 +339,21 @@ def generate_llm_analysis_prompt(exp1: str, exp2: str, combined_report_content: 
 上記のレポート内容を踏まえ、以下の観点から{exp1}と{exp2}を比較・考察し、結果をMarkdown形式でまとめてください。
 
 1.  **全体的な誤答傾向の比較:**
-    *   両モデルに共通する弱点や誤答しやすい問題タイプはありますか？（例: 知識問題、臨床推論問題、画像問題、計算問題など）
-    *   {exp1}と{exp2}で、誤答する問題の傾向に違いはありますか？それぞれのモデルが特に苦手とする分野や問題形式を指摘してください。
+    *   両モデルに共通する弱点や誤答しやすい問題タイプはありますか？（例: 知識問題、臨床推論問題、画像問題、計算問題、選択肢の多い問題など） # ★★★ 考察観点の追加示唆 ★★★
+    *   {exp1}と{exp2}で、誤答する問題の傾向に違いはありますか？それぞれのモデルが特に苦手とする分野や問題形式（画像有無、選択肢の特性なども考慮）を指摘してください。 # ★★★ 考察観点の追加示唆 ★★★
     *   片方のモデルだけが間違える問題から、それぞれのモデルの強みや弱みを推測できますか？
 
 2.  **具体的な誤答パターンの分析:**
-    *   「両モデル共通誤答のパターン」から、特定の誤答（例: 正解がAなのに両方Cを選んでしまう）が頻発している場合、その原因として何が考えられますか？（例: 一般的な誤解、問題文の曖昧さ、特定の知識領域の欠落など）
+    *   「両モデル共通誤答のパターン」から、特定の誤答（例: 正解がAなのに両方Cを選んでしまう）が頻発している場合、その原因として何が考えられますか？（例: 一般的な誤解、問題文や選択肢の曖昧さ、特定の知識領域の欠落など） # ★★★ 考察観点の追加示唆 ★★★
     *   各モデルの誤答において、回答理由（説明）が提供されている場合、その内容から誤答の原因（知識不足、読解ミス、推論の誤りなど）を推測してください。
 
 3.  **総括:**
     *   今回の比較結果から、{exp1}と{exp2}の全体的な性能や特性について、どのようなことが言えますか？
-    *   もし改善するとしたら、それぞれのモデルに対してどのような方向性（学習データの追加、プロンプトの改善など）が考えられますか？
+    *   もし改善するとしたら、それぞれのモデルに対してどのような方向性（学習データの追加、プロンプトの改善、画像理解能力の強化など）が考えられますか？ # ★★★ 考察観点の追加示唆 ★★★
 
 【出力形式】
 - Markdown形式で、上記の考察依頼の項目（1, 2, 3）に対応するセクションを設けて記述してください。
-- 専門的かつ客観的な視点で、具体的な問題番号や誤答パターンに言及しながら考察を記述してください。
+- 専門的かつ客観的な視点で、具体的な問題番号や誤答パターン、選択肢の内容、画像有無などに言及しながら考察を記述してください。 # ★★★ 考察観点の追加示唆 ★★★
 - 推測に基づく場合は、その旨を明記してください。
 """
     return prompt
@@ -312,9 +368,6 @@ def call_llm_for_analysis(
     try:
         config, client = llm_solver.get_config_and_client(model_key)
 
-        # ★★★ max_tokensの値を増やす ★★★
-        # モデルに応じて適切な最大値を設定（ここでは16384を試す）
-        # モデルによってはこの値が大きすぎるとエラーになる可能性あり
         max_output_tokens = 16384
 
         if config["client_type"] == "anthropic":
@@ -322,7 +375,7 @@ def call_llm_for_analysis(
              response = client.messages.create(
                  model=config["model_name"],
                  messages=messages,
-                 max_tokens=max_output_tokens, # ★ 変更
+                 max_tokens=max_output_tokens,
                  temperature=0.5
              )
              analysis_result = response.content[0].text
@@ -333,7 +386,7 @@ def call_llm_for_analysis(
              response = client.chat.completions.create(
                  model=config["model_name"],
                  messages=messages,
-                 max_tokens=max_output_tokens, # ★ 変更
+                 max_tokens=max_output_tokens,
                  temperature=0.5
              )
              analysis_result = response.choices[0].message.content
@@ -343,15 +396,15 @@ def call_llm_for_analysis(
 
     except Exception as e:
         print(f"エラー: LLM ({model_key}) での分析中にエラーが発生しました: {e}", file=sys.stderr)
-        # エラーによっては、max_tokensが原因である可能性を示すメッセージを追加
         error_message = f"LLMによる分析中にエラーが発生しました: {e}"
         if "max_tokens" in str(e).lower():
             error_message += f"\n考えられる原因: max_tokens={max_output_tokens} がモデルの上限を超えている可能性があります。モデルのドキュメントを確認してください。"
         return error_message
 
 
-# --- メイン処理 (変更箇所あり) ---
+# --- メイン処理 ---
 
+# ▼▼▼ `compare_wrong_answers` 関数の修正 ▼▼▼
 def compare_wrong_answers(
     exp1: str,
     exp2: str,
@@ -399,19 +452,31 @@ def compare_wrong_answers(
     comparison_data = []
     all_compared_questions = both_wrong.union(exp1_wrong_only).union(exp2_wrong_only)
 
+    default_q_data = {"answer": "Data Not Found", "explanation": "", "question_text": "", "choices": None, "has_image": None}
+
     for q_num in sorted(list(all_compared_questions)):
-        ans1 = answers1.get(q_num, {"answer": "Data Not Found", "explanation": "", "question_text": ""})
-        ans2 = answers2.get(q_num, {"answer": "Data Not Found", "explanation": "", "question_text": ""})
+        # ★★★ デフォルト値を使って取得を簡略化 ★★★
+        ans1_data = answers1.get(q_num, default_q_data)
+        ans2_data = answers2.get(q_num, default_q_data)
         correct = correct_answers.get(q_num, "N/A")
+
+        # 問題文、選択肢、画像有無はどちらかのデータから取得 (通常は同じはず)
+        q_text = ans1_data["question_text"] or ans2_data["question_text"]
+        choices = ans1_data["choices"] or ans2_data["choices"]
+        has_image = ans1_data["has_image"] if ans1_data["has_image"] is not None else ans2_data["has_image"]
 
         if q_num in both_wrong:
             comp_type = "Both Wrong"
         elif q_num in exp1_wrong_only:
             comp_type = f"{exp1} Wrong Only"
-            ans2["answer"] = ans2["answer"] if ans2["answer"] != "Data Not Found" else "Correct (or Data Not Found)"
+            # ans2がデータ未発見の場合に 'Correct' と表示させる処理は維持
+            if ans2_data["answer"] == "Data Not Found":
+                 ans2_data["answer"] = "Correct (or Data Not Found)"
         elif q_num in exp2_wrong_only:
              comp_type = f"{exp2} Wrong Only"
-             ans1["answer"] = ans1["answer"] if ans1["answer"] != "Data Not Found" else "Correct (or Data Not Found)"
+             # ans1がデータ未発見の場合に 'Correct' と表示させる処理は維持
+             if ans1_data["answer"] == "Data Not Found":
+                 ans1_data["answer"] = "Correct (or Data Not Found)"
         else:
              comp_type = "Unknown"
 
@@ -419,11 +484,14 @@ def compare_wrong_answers(
             "question_number": q_num,
             "comparison_type": comp_type,
             "correct_answer": correct,
-            f"{exp1}_answer": ans1["answer"],
-            f"{exp1}_explanation": ans1["explanation"],
-            f"{exp2}_answer": ans2["answer"],
-            f"{exp2}_explanation": ans2["explanation"],
-            "question_text": ans1["question_text"] or ans2["question_text"]
+            # ★★★ choices, has_image を追加 ★★★
+            "question_text": q_text,
+            "choices": choices,
+            "has_image": has_image,
+            f"{exp1}_answer": ans1_data["answer"],
+            f"{exp1}_explanation": ans1_data["explanation"],
+            f"{exp2}_answer": ans2_data["answer"],
+            f"{exp2}_explanation": ans2_data["explanation"],
         })
 
     if not comparison_data:
@@ -432,13 +500,19 @@ def compare_wrong_answers(
 
     df_comparison = pd.DataFrame(comparison_data)
 
+    # ★★★ カラム順序に choices, has_image を追加 ★★★
     columns_order = [
-        "question_number", "comparison_type", "correct_answer", "question_text",
+        "question_number", "comparison_type", "correct_answer",
+        "has_image", "question_text", "choices", # 追加
         f"{exp1}_answer", f"{exp1}_explanation",
         f"{exp2}_answer", f"{exp2}_explanation"
     ]
+    # DataFrameに実際に存在するカラムのみで順序を再構成
     existing_columns = [col for col in columns_order if col in df_comparison.columns]
-    df_comparison = df_comparison[existing_columns]
+    # 上記リストに含まれない他のカラムも末尾に追加する（安全のため）
+    other_columns = [col for col in df_comparison.columns if col not in existing_columns]
+    df_comparison = df_comparison[existing_columns + other_columns]
+
 
     # 6. 出力形式に応じて処理
     output_basename = f"comparison_119_{exp1}_vs_{exp2}"
@@ -448,7 +522,14 @@ def compare_wrong_answers(
     if output_format in ['csv', 'all']:
         output_csv_path = output_dir / f"{output_basename}.csv"
         try:
-            df_comparison.to_csv(output_csv_path, index=False, encoding='utf-8-sig')
+            # ★★★ CSV出力時にリストや辞書を文字列化（必要に応じて） ★★★
+            # choicesがリスト/辞書の場合、そのままCSVに書き込むと扱いづらい可能性がある
+            # JSON文字列として保存する例
+            df_csv_out = df_comparison.copy()
+            if 'choices' in df_csv_out.columns:
+                 df_csv_out['choices'] = df_csv_out['choices'].apply(lambda x: json.dumps(x, ensure_ascii=False) if x is not None else None)
+
+            df_csv_out.to_csv(output_csv_path, index=False, encoding='utf-8-sig')
             print(f"比較結果CSVを {output_csv_path} に保存しました。")
         except Exception as e:
             print(f"エラー: 比較結果のCSVファイルへの書き込み中にエラーが発生しました: {e}", file=sys.stderr)
@@ -487,7 +568,6 @@ def compare_wrong_answers(
             return
 
         print(f"\n--- LLM ({analyze_model_key}) による比較考察を実行します ---")
-        # 生成されたMarkdownファイルの内容を結合
         print("生成されたMarkdownレポートを読み込んでいます...")
         combined_content = read_markdown_files(md_files_generated)
 
@@ -495,22 +575,10 @@ def compare_wrong_answers(
              print("エラー: Markdownレポートの内容を読み込めませんでした。LLM分析をスキップします。", file=sys.stderr)
              return
 
-        # トークン数削減のため、簡易化（ここではコメントアウト。必要なら実装）
-        # print("レポート内容を要約中（トークン数削減）...")
-        # summarized_content = summarize_report_content(combined_content) # 要約関数を別途実装する必要あり
-        # prompt = generate_llm_analysis_prompt(exp1, exp2, summarized_content)
-
-        # 全文を使ってプロンプト生成
         prompt = generate_llm_analysis_prompt(exp1, exp2, combined_content)
-
-        # LLMSolverのインスタンスを作成 (API呼び出しのため)
-        # system_prompt_type はダミーでも良いが、念のため指定
-        llm_solver = LLMSolver(system_prompt_type="v2")
-
-        # LLM分析実行
+        llm_solver = LLMSolver(system_prompt_type="v2") # system_prompt_typeは適切なものに
         analysis_result = call_llm_for_analysis(prompt, analyze_model_key, llm_solver)
 
-        # 分析結果を保存
         analysis_output_path = output_dir / f"analysis_119_{exp1}_vs_{exp2}_by_{analyze_model_key}.md"
         try:
             with open(analysis_output_path, 'w', encoding='utf-8') as f:
@@ -521,13 +589,15 @@ def compare_wrong_answers(
         except Exception as e:
             print(f"エラー: LLM分析結果のMarkdownファイルへの書き込み中にエラーが発生しました: {e}", file=sys.stderr)
 
+# ▲▲▲ `compare_wrong_answers` 関数の修正 ▲▲▲
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description='2つのLLM実験の誤答パターンを比較し、CSVまたはMarkdown形式で出力します。\nMarkdownは比較タイプごとに分割され、オプションでLLMによる考察も生成します。',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
-    # --- 引数定義 ---
+    # --- 引数定義 (変更なし) ---
     parser.add_argument(
         'exp1',
         help='比較対象の実験識別子1 (例: gemini-2.5-pro)'
@@ -557,11 +627,10 @@ if __name__ == "__main__":
         default='all',
         help='比較レポートの出力形式 (csv: CSVのみ, md: Markdownのみ(分割), all: 両方)'
     )
-    # ★★★ LLM分析用の新しい引数 ★★★
     parser.add_argument(
         '--analyze_with_llm',
         metavar='MODEL_KEY',
-        default=None, # デフォルトでは実行しない
+        default=None,
         help='指定したLLMモデルで誤答比較レポートの考察を行い、結果をMarkdownで出力します (例: gemini-2.5-pro-exp-03-25, gpt-4o)。APIキーが必要です。'
     )
 
@@ -580,5 +649,5 @@ if __name__ == "__main__":
         results_path,
         answers_path,
         args.output_format,
-        args.analyze_with_llm # 新しい引数を渡す
+        args.analyze_with_llm
     )
