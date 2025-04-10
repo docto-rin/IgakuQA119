@@ -96,5 +96,33 @@
         "no_image_correct": 213,
         "no_image_total": 297,
         "no_image_accuracy": 0.7171717171717171
+    },
+    "Cogito-32B-Think": {
+        "overall_score": 392.0,
+        "overall_possible_score": 500.0,
+        "overall_score_rate": 0.784,
+        "overall_correct": 310,
+        "overall_total": 400,
+        "overall_accuracy": 0.775,
+        "no_image_score": 305.0,
+        "no_image_possible_score": 383.0,
+        "no_image_score_rate": 0.7963446475195822,
+        "no_image_correct": 237,
+        "no_image_total": 297,
+        "no_image_accuracy": 0.797979797979798
+    },
+    "Cogito-32B-No-Think": {
+        "overall_score": 346.0,
+        "overall_possible_score": 500.0,
+        "overall_score_rate": 0.692,
+        "overall_correct": 278,
+        "overall_total": 400,
+        "overall_accuracy": 0.695,
+        "no_image_score": 271.0,
+        "no_image_possible_score": 383.0,
+        "no_image_score_rate": 0.7075718015665796,
+        "no_image_correct": 211,
+        "no_image_total": 297,
+        "no_image_accuracy": 0.7104377104377104
     }
 }
