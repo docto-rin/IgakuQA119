@@ -162,8 +162,8 @@ class LLMSolver:
                 # "ollama-"以降の文字列を真のモデル名として設定
                 config["model_name"] = model_key.split("ollama-", 1)[1]
                 return config, OpenAI(api_key=config["api_key"], base_url=config["base_url"])
-            # hf.co/ で始まる場合の対応（直接URL指定）
-            elif model_key.startswith("huggingface.co/"):
+            # もしモデルギーが "huggingface.co/" または "hf.co/" で始まるならollama-flexibleを使用
+            elif model_key.startswith("huggingface.co/") or model_key.startswith("hf.co/"):
                 config = self.models["ollama-flexible"].copy()
                 # モデル名にフルURLを渡す
                 config["model_name"] = model_key
