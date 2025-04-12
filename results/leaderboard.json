@@ -70,18 +70,18 @@
         "no_image_accuracy": 0.42424242424242425
     },
     "CA-DSR1-DQ32B-JP-SFT": {
-        "overall_score": 362.0,
+        "overall_score": 374.0,
         "overall_possible_score": 500.0,
-        "overall_score_rate": 0.724,
-        "overall_correct": 284,
+        "overall_score_rate": 0.748,
+        "overall_correct": 294,
         "overall_total": 400,
-        "overall_accuracy": 0.71,
-        "no_image_score": 279.0,
+        "overall_accuracy": 0.735,
+        "no_image_score": 290.0,
         "no_image_possible_score": 383.0,
-        "no_image_score_rate": 0.7284595300261096,
-        "no_image_correct": 213,
+        "no_image_score_rate": 0.7571801566579635,
+        "no_image_correct": 222,
         "no_image_total": 297,
-        "no_image_accuracy": 0.7171717171717171
+        "no_image_accuracy": 0.7474747474747475
     },
     "CA-DSR1-DQ32B-JP-CPT": {
         "overall_score": 356.0,
