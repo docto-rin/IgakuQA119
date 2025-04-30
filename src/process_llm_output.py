@@ -12,91 +12,87 @@ class OutputProcessor:
             re.DOTALL | re.IGNORECASE
         )
 
-    def format_model_response(self, response: str) -> Tuple[Dict[str, Any], bool]:
+    def format_model_response(
+        self,
+        response: str,
+        cot: Optional[str] = None
+    ) -> Tuple[Dict[str, Any], bool]:
         """
-        モデルの生の応答をパースして構造化データに変換し、
-        解析が成功したかどうかをboolで返す。
-        CoT部分も抽出する。
+        モデルの生の応答をパースして構造化データに変換し、解析が成功したかどうかを bool で返す。
+        - cot が None の場合のみ、応答文字列から <think>〜</think> 等を抽出する
+        - cot が与えられている場合はそれを優先し、タグ除去だけ行う
         """
-        result = {
+        result: Dict[str, Any] = {
             "answer": None,
             "confidence": None,
             "explanation": None,
-            "cot": None
+            "cot": cot
         }
+        success = True
 
-        success = True  # 解析が成功したかのフラグ
-
-        # 応答が空または無効な場合
+        # ---- 入力チェック ----
         if not response or not isinstance(response, str):
             print(f"警告: 無効な応答を受け取りました: {response}")
             return result, False
 
-        cleaned_response = response # 解析用のレスポンス文字列を準備
-        try:
-            # --- CoTの抽出 ---
+        cleaned_response = response
+
+        # ---- CoT の処理 ----
+        if cot is None:
             cot_match = self.cot_pattern.search(response)
             if cot_match:
-                print(f"情報: CoTを抽出しました。")
-                extracted_cot = cot_match.group(2).strip()
-                result['cot'] = extracted_cot
-                cleaned_response = self.cot_pattern.sub('', response).strip()
+                print("情報: CoT を抽出しました。")
+                result["cot"] = cot_match.group(2).strip()
             else:
-                print(f"情報: CoTタグが見つかりませんでした。")
-                result['cot'] = None
+                print("情報: CoT タグが見つかりませんでした。")
+        cleaned_response = self.cot_pattern.sub("", response).strip()
 
-            # --- answer, confidence, explanation の抽出 ---
-            # CoT除去後のcleaned_responseを解析対象とする
+        # ---- answer／confidence／explanation ----
+        try:
             lines = cleaned_response.lower().split('\n')
-            temp_explanation_lines = [] # explanationが複数行にわたる場合を考慮
-            found_explanation_key = False
+            temp_expl_lines = []
+            found_expl_key = False
 
             for line in lines:
                 line = line.strip()
-                if not line: # 空行はスキップ
+                if not line:
                     continue
 
                 if line.startswith('answer:'):
                     result['answer'] = line.replace('answer:', '').strip()
+
                 elif line.startswith('confidence:'):
-                    try:
-                        confidence_str = line.replace('confidence:', '').strip()
-                        # confidence値に余計な文字が含まれている場合への対応
-                        confidence_match = re.search(r"(\d\.?\d*)", confidence_str)
-                        if confidence_match:
-                             confidence = float(confidence_match.group(1))
-                             # 0.0から1.0の範囲にクリップ
-                             result['confidence'] = max(0.0, min(1.0, confidence))
-                        else:
-                             print(f"警告: 確信度の数値変換に失敗 (数値が見つからない): {line}")
-                             success = False # 確信度が必須ではない場合、これをコメントアウトしても良い
-                    except ValueError:
+                    conf_str = line.replace('confidence:', '').strip()
+                    match = re.search(r"(\d\.?\d*)", conf_str)
+                    if match:
+                        val = float(match.group(1))
+                        result['confidence'] = max(0.0, min(1.0, val))
+                    else:
                         print(f"警告: 確信度の数値変換に失敗: {line}")
-                        success = False # 確信度が必須ではない場合、これをコメントアウトしても良い
+                        success = False
+
                 elif line.startswith('explanation:'):
-                    # explanationキーが見つかったら、それ以降の行をexplanationとして扱う準備
-                    found_explanation_key = True
-                    # explanation: の後のテキストも最初の行として追加
-                    expl_line = line.replace('explanation:', '').strip()
-                    if expl_line:
-                       temp_explanation_lines.append(expl_line)
-                elif found_explanation_key:
-                     # explanationキーが見つかった後の行はexplanationの一部として追加
-                     temp_explanation_lines.append(line)
+                    found_expl_key = True
+                    first_line = line.replace('explanation:', '').strip()
+                    if first_line:
+                        temp_expl_lines.append(first_line)
 
-            if temp_explanation_lines:
-                 result['explanation'] = "\n".join(temp_explanation_lines).strip()
-            elif found_explanation_key: # キーは見つかったが内容がない場合
-                 result['explanation'] = "" # 空文字列を設定
+                elif found_expl_key:
+                    temp_expl_lines.append(line)
 
-            # 必須フィールド（answer）がなければ失敗と判断
+            if temp_expl_lines:
+                result['explanation'] = "\n".join(temp_expl_lines).strip()
+            elif found_expl_key:
+                result['explanation'] = ""
+
+            # answer が取れなければ失敗判定
             if not result['answer']:
-                print("警告: answerが見つかりませんでした")
+                print("警告: answer が見つかりませんでした")
                 success = False
 
-            # explanationが見つからなかった場合（キー自体が存在しない場合）
-            if not found_explanation_key and 'explanation' not in result:
-                 result['explanation'] = cleaned_response # explanationがなければ元の応答（CoT除く）を入れる（暫定対応）
+            # explanation キーごと無い場合は cleaned_response を丸ごと入れておく
+            if not found_expl_key and result['explanation'] is None:
+                result['explanation'] = cleaned_response
 
         except Exception as e:
             print(f"例外発生: 応答解析中にエラー: {e}")

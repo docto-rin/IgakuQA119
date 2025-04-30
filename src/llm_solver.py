@@ -1,5 +1,9 @@
 import os
+import copy
+import traceback
 from typing import Dict, List, Optional, Any
+import time
+import random
 import anthropic
 from openai import OpenAI
 from datetime import datetime
@@ -15,7 +19,7 @@ load_dotenv()
 class LLMSolver:
     def __init__(self, system_prompt_type="default"):
         self.output_processor = OutputProcessor()
-        
+
         if system_prompt_type == "default":
             self.system_prompt = textwrap.dedent("""\
                 あなたは医師国家試験問題を解く優秀で論理的なアシスタントです。
@@ -42,7 +46,8 @@ class LLMSolver:
         else:
             raise ValueError("無効なsystem_prompt_typeが指定されました。")
         
-        self.models = {
+        self.models: Dict[str, Dict[str, Any]] = {
+            # ---- OpenAI ----
             "o1": {
                 "api_key": os.getenv("OPENAI_API_KEY"),
                 "model_name": "o1",
@@ -70,6 +75,7 @@ class LLMSolver:
                 "system_prompt": self.system_prompt,
                 "parameters": {"reasoning_effort": "high"}
             },
+            # ---- Google (Gemma) ----
             "gemma-3": {
                 "api_key": os.getenv("GEMINI_API_KEY"),
                 "base_url": "https://generativelanguage.googleapis.com/v1beta/",
@@ -80,6 +86,7 @@ class LLMSolver:
                 "system_prompt": self.system_prompt,
                 "parameters": {}
             },
+            # ---- DeepSeek ----
             "deepseek": {
                 "api_key": os.getenv("DEEPSEEK_API_KEY"),
                 "base_url": os.getenv("DEEPSEEK_ENDPOINT"),
@@ -90,6 +97,7 @@ class LLMSolver:
                 "system_prompt": self.system_prompt,
                 "parameters": {}
             },
+            # ---- Anthropic Claude ----
             "claude": {
                 "api_key": os.getenv("ANTHROPIC_API_KEY"),
                 "model_name": "claude-3-5-sonnet-20241022",
@@ -102,74 +110,97 @@ class LLMSolver:
                     "max_tokens": 1000
                 }
             },
+            # ---- Preferred Networks PLaMo ----
             "plamo-1.0-prime": {
-                "api_key": os.getenv("PLAMO_API_KEY"), # Use PLAMO_API_KEY environment variable
-                "base_url": "https://platform.preferredai.jp/api/completion/v1", # PLaMo API endpoint
-                "model_name": "plamo-1.0-prime", # Specific PLaMo model
-                "client_type": "openai", # OpenAI compatible API
-                "supports_vision": False, # PLaMo currently does not support vision
-                "system_role": "user", # Improved performance compared to 'system'
+                "api_key": os.getenv("PLAMO_API_KEY"),
+                "base_url": "https://platform.preferredai.jp/api/completion/v1",
+                "model_name": "plamo-1.0-prime",
+                "client_type": "openai",
+                "supports_vision": False,
+                "system_role": "user",
                 "system_prompt": self.system_prompt,
-                "parameters": {} # Add any specific PLaMo parameters here if needed
+                "parameters": {}
             },
-            # Geminiの柔軟な指定用エントリー
+            # ---- Gemini Flexible ----
             "gemini-flexible": {
                 "api_key": os.getenv("GEMINI_API_KEY"),
                 "base_url": "https://generativelanguage.googleapis.com/v1beta/",
-                "model_name": None,  # 使用時に動的に設定
+                "model_name": None,
                 "client_type": "openai",
                 "supports_vision": True,
                 "system_role": "system",
                 "system_prompt": self.system_prompt,
                 "parameters": {}
             },
-            # Ollamaの柔軟な指定用エントリー
+            # ---- Ollama Flexible ----
             "ollama-flexible": {
-                "api_key": "ollama",  # ダミーAPIキー（実際は使用されない）
+                "api_key": "ollama",  # ダミー
                 "base_url": "http://localhost:11434/v1",
-                "model_name": None,  # 使用時に動的に設定
+                "model_name": None,
                 "client_type": "openai",
                 "supports_vision": False,
                 "system_role": "system",
                 "system_prompt": self.system_prompt,
                 "parameters": {}
+            },
+            # ---- OpenRouter Flexible ----
+            "openrouter-flexible": {
+                "api_key": os.getenv("OPENROUTER_API_KEY"),
+                "base_url": "https://openrouter.ai/api/v1",
+                "model_name": None,  # 使用時に動的に設定
+                "client_type": "openai",
+                "supports_vision": False,  # 画像入力対応モデルのみ True にしても OK
+                "system_role": "system",
+                "system_prompt": self.system_prompt,
+                "parameters": {},
+                "extra_headers": {
+                    "HTTP-Referer": os.getenv("OPENROUTER_HTTP_REFERER", "https://yourapp.example"),
+                    "X-Title": os.getenv("OPENROUTER_APP_TITLE", "LLMSolver")
+                },
+                "extra_body": {
+                    "enable_thinking": True
+                }
             }
         }
 
     def get_config_and_client(self, model_key: str):
-        # ハードコーディングされたモデルキーの場合
-        if model_key in self.models:
-            config = self.models[model_key]
-            # もしクライアントタイプが "anthropic" ならAnthropicクライアントを使用
-            if config["client_type"] == "anthropic":
-                return config, anthropic.Anthropic(api_key=config["api_key"])
-            # それ以外の場合はOpenAIクライアントを使用
-            else:
-                if "base_url" in config:
-                    return config, OpenAI(api_key=config["api_key"], base_url=config["base_url"])
-                return config, OpenAI(api_key=config["api_key"])
+        """モデルキーから設定とクライアントを返す。未定義キーは柔軟に解決"""
 
-        # モデルキーが直接定義されていない場合の処理
+        # get config
+        if model_key in self.models:
+            # static config
+            config = self.models[model_key]
         else:
-            # もしモデルキーが "gemini-" で始まるならgemini-flexibleを使用
+            # dynamic config
             if model_key.startswith("gemini-"):
-                config = self.models["gemini-flexible"].copy()
+                config = copy.deepcopy(self.models["gemini-flexible"])
                 config["model_name"] = model_key
-                return config, OpenAI(api_key=config["api_key"], base_url=config["base_url"])
-            # もしモデルキーが "ollama-" で始まるならollama-flexibleを使用
             elif model_key.startswith("ollama-"):
-                config = self.models["ollama-flexible"].copy()
-                # "ollama-"以降の文字列を真のモデル名として設定
+                config = copy.deepcopy(self.models["ollama-flexible"])
                 config["model_name"] = model_key.split("ollama-", 1)[1]
-                return config, OpenAI(api_key=config["api_key"], base_url=config["base_url"])
-            # もしモデルギーが "huggingface.co/" または "hf.co/" で始まるならollama-flexibleを使用
-            elif model_key.startswith("huggingface.co/") or model_key.startswith("hf.co/"):
-                config = self.models["ollama-flexible"].copy()
-                # モデル名にフルURLを渡す
-                config["model_name"] = model_key
-                return config, OpenAI(api_key=config["api_key"], base_url=config["base_url"])
+            elif model_key.startswith("openrouter-"):
+                config = copy.deepcopy(self.models["openrouter-flexible"])
+                config["model_name"] = model_key.split("openrouter-", 1)[1] 
             else:
                 raise ValueError(f"未定義のモデルキーです: {model_key}")
+
+        # get client
+        if config["client_type"] == "anthropic":
+            # Anthropic client
+            client = anthropic.Anthropic(api_key=config["api_key"])
+            return config, client
+        else:
+            # OpenAI client
+            client_args = {
+                "api_key": config["api_key"]
+            }
+            if "base_url" in config and config["base_url"]:
+                client_args["base_url"] = config["base_url"]
+            if config.get("extra_headers"):
+                client_args["default_headers"] = config["extra_headers"]
+
+            client = OpenAI(**client_args)
+            return config, client
 
     def solve_question(self, question: Dict, model_key: str) -> Dict:
         """1つの問題を解く"""
@@ -183,85 +214,100 @@ class LLMSolver:
 
 回答を指定された形式で出力してください。"""
 
-        try:
-            if config["client_type"] == "anthropic":
-                response = client.messages.create(
-                    model=config["model_name"],
-                    messages=[{"role": "user", "content": prompt}],
-                    system=config["system_prompt"],
-                    **config["parameters"]
-                )
-                raw_response = response.content[0].text
-            else:
-                # OpenAI APIの呼び出しを修正
-                messages = [
-                    {"role": config["system_role"], "content": config["system_prompt"]},
-                    {"role": "user", "content": prompt}
-                ]
+        max_retries = 5
+        base_wait_time = 1
 
-                # 画像がある場合の処理を追加
-                if config["supports_vision"] and question.get("has_image", False):
-                    image_paths = self.get_question_images(question["number"])
-                    content = [{"type": "text", "text": prompt}]
-                    for image_path in image_paths:
-                        base64_image = self.encode_image(image_path)
-                        content.append({
-                            "type": "image_url",
-                            "image_url": {
-                                "url": f"data:image/jpeg;base64,{base64_image}"
-                            }
-                        })
+        for attempt in range(max_retries):
+            try:
+                if config["client_type"] == "anthropic":
+                    response = client.messages.create(
+                        model=config["model_name"],
+                        messages=[{"role": "user", "content": prompt}],
+                        system=config["system_prompt"],
+                        **config["parameters"]
+                    )
+                    raw_response = response.content[0].text
+                    cot = None # Anthropic は現時点では CoT を直接返さない
+                else:
                     messages = [
                         {"role": config["system_role"], "content": config["system_prompt"]},
-                        {"role": "user", "content": content}
+                        {"role": "user", "content": prompt}
                     ]
 
-                response = client.chat.completions.create(
-                    model=config["model_name"],
-                    messages=messages,
-                    **config["parameters"]
-                )
-                raw_response = response.choices[0].message.content
+                    if config["supports_vision"] and question.get("has_image", False):
+                        image_paths = self.get_question_images(question["number"])
+                        content = [{"type": "text", "text": prompt}]
+                        for image_path in image_paths:
+                            base64_image = self.encode_image(image_path)
+                            content.append({
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": f"data:image/jpeg;base64,{base64_image}"
+                                }
+                            })
+                        messages = [
+                            {"role": config["system_role"], "content": config["system_prompt"]},
+                            {"role": "user", "content": content}
+                        ]
 
-            # レスポンスを受け取った直後にログ出力
-            print(f"モデル {model_key} からの生の応答:")
-            print(raw_response)
-            
-            # 応答を構造化データに変換
-            formatted_response, success = self.output_processor.format_model_response(raw_response)
+                    response = client.chat.completions.create(
+                        model=config["model_name"],
+                        messages=messages,
+                        extra_body=config.get("extra_body", {}),
+                        **config["parameters"]
+                    )
+                    raw_response = response.choices[0].message.content
+                    cot = response.choices[0].message.reasoning if hasattr(response.choices[0].message, 'reasoning') else None
 
-            # 解析が失敗した場合にポストプロセスを実施
-            num_attempts = 0
-            max_attempts = 3
-            while not success and num_attempts < max_attempts:
-                print("ポストプロセスを開始します。")
-                fixed_response = self.perform_postprocessing(raw_response, config, client)
-                formatted_response, success = self.output_processor.format_model_response(fixed_response)
-                num_attempts += 1
-                print(f"ポストプロセス試行回数: {num_attempts}")
-                if success:
-                    print("ポストプロセス成功")
-                    print(f"ポストプロセス後の応答: {fixed_response}")
+                # レスポンスを受け取った直後にログ出力
+                print(f"モデル {model_key} からの応答:")
+                if cot:
+                    print(f"CoT: {cot}")
+                print(f"生の応答: {raw_response}")
+                
+                # 応答を構造化データに変換
+                formatted_response, success = self.output_processor.format_model_response(raw_response, cot)
+
+                # 解析が失敗した場合にポストプロセスを実施
+                num_post_attempts = 0
+                max_post_attempts = 3
+                while not success and num_post_attempts < max_post_attempts:
+                    print("ポストプロセスを開始します。")
+                    fixed_response = self.perform_postprocessing(raw_response, config, client)
+                    formatted_response, success = self.output_processor.format_model_response(fixed_response, cot)
+                    num_post_attempts += 1
+                    print(f"ポストプロセス試行回数: {num_post_attempts}")
+                    if success:
+                        print("ポストプロセス成功")
+                        print(f"ポストプロセス後の応答: {fixed_response}")
+                        raw_response = fixed_response # ポストプロセス後の応答を raw_response とする
+                    else:
+                        print("ポストプロセス失敗")
+
+                return {
+                    "model_used": model_key,
+                    "raw_response": raw_response,
+                    "answer": formatted_response["answer"],
+                    "confidence": formatted_response["confidence"],
+                    "explanation": formatted_response["explanation"],
+                    "cot": formatted_response["cot"],
+                    "timestamp": datetime.now().isoformat()
+                }
+
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    wait_time = base_wait_time * (2 ** attempt) + random.uniform(0, 1) # 指数バックオフ + ジッター
+                    print(f"モデル {model_key} でエラー発生: {e}. {wait_time:.2f}秒待機してリトライします ({attempt + 1}/{max_retries})")
+                    time.sleep(wait_time)
                 else:
-                    print("ポストプロセス失敗")
-
-            return {
-                "model_used": model_key,
-                "raw_response": raw_response,
-                "answer": formatted_response["answer"],
-                "confidence": formatted_response["confidence"],
-                "explanation": formatted_response["explanation"],
-                "cot": formatted_response["cot"],
-                "timestamp": datetime.now().isoformat()
-            }
-
-        except Exception as e:
-            print(f"モデル {model_key} でエラーが発生: {str(e)}")
-            return {
-                "model_used": model_key,
-                "error": str(e),
-                "timestamp": datetime.now().isoformat()
-            }
+                    print(f"モデル {model_key} で最大リトライ回数 ({max_retries}) に達しました。最終エラー: {e}")
+                    traceback.print_exc()
+                    return {
+                        "model_used": model_key,
+                        "error": repr(e),
+                        "traceback": traceback.format_exc(),
+                        "timestamp": datetime.now().isoformat()
+                    }
 
     def process_questions(self, questions: List[Dict], models: Optional[List[str]] = None, file_exp: Optional[str] = None) -> List[Dict]:
         """全ての問題を処理"""
@@ -341,16 +387,35 @@ class LLMSolver:
             {"role": "user", "content": retry_prompt}
         ]
 
-        try:
-            response = client.chat.completions.create(
-                model=config["model_name"],
-                messages=messages,
-                **config["parameters"]
-            )
+        max_retries = 3
+        base_wait_time = 1
 
-            fixed_response = response.choices[0].message.content
-            return fixed_response
+        for attempt in range(max_retries):
+            try:
+                if config["client_type"] == "anthropic":
+                     response = client.messages.create(
+                        model=config["model_name"],
+                        messages=[{"role": "user", "content": retry_prompt}], # ポストプロセスではシステムプロンプトをメッセージに含める
+                        system=config["system_prompt"], # system 引数はそのまま
+                        **config["parameters"]
+                    )
+                     fixed_response = response.content[0].text
+                else: # OpenAI 互換クライアント
+                    response = client.chat.completions.create(
+                        model=config["model_name"],
+                        messages=messages,
+                        extra_body=config.get("extra_body", {}), # extra_body も考慮
+                        **config["parameters"]
+                    )
+                    fixed_response = response.choices[0].message.content
+                
+                return fixed_response
 
-        except Exception as e:
-            print(f"ポストプロセス中に例外が発生しました: {e}")
-            return ""
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    wait_time = base_wait_time * (2 ** attempt) + random.uniform(0, 1)
+                    print(f"ポストプロセス中にAPIエラー発生: {e}. {wait_time:.2f}秒待機してリトライします ({attempt + 1}/{max_retries})")
+                    time.sleep(wait_time)
+                else:
+                    print(f"ポストプロセス中のAPI呼び出しで最大リトライ回数 ({max_retries}) に達しました。最終エラー: {e}")
+                    return ""

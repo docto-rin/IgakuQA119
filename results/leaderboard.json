@@ -124,5 +124,33 @@
         "no_image_correct": 211,
         "no_image_total": 297,
         "no_image_accuracy": 0.7104377104377104
+    },
+    "Qwen3-30B-A3B": {
+        "overall_score": 412.0,
+        "overall_possible_score": 500.0,
+        "overall_score_rate": 0.824,
+        "overall_correct": 328,
+        "overall_total": 400,
+        "overall_accuracy": 0.82,
+        "no_image_score": 323.0,
+        "no_image_possible_score": 383.0,
+        "no_image_score_rate": 0.8433420365535248,
+        "no_image_correct": 251,
+        "no_image_total": 297,
+        "no_image_accuracy": 0.8451178451178452
+    },
+    "Qwen3-32B": {
+        "overall_score": 415.0,
+        "overall_possible_score": 500.0,
+        "overall_score_rate": 0.83,
+        "overall_correct": 329,
+        "overall_total": 400,
+        "overall_accuracy": 0.8225,
+        "no_image_score": 334.0,
+        "no_image_possible_score": 383.0,
+        "no_image_score_rate": 0.8720626631853786,
+        "no_image_correct": 256,
+        "no_image_total": 297,
+        "no_image_accuracy": 0.8619528619528619
     }
 }
