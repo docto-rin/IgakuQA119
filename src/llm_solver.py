@@ -134,7 +134,7 @@ class LLMSolver:
             },
             # ---- Ollama Flexible ----
             "ollama-flexible": {
-                "api_key": "ollama",  # ダミー
+                "api_key": "ollama",  # dummy
                 "base_url": "http://localhost:11434/v1",
                 "model_name": None,
                 "client_type": "openai",
@@ -147,9 +147,9 @@ class LLMSolver:
             "openrouter-flexible": {
                 "api_key": os.getenv("OPENROUTER_API_KEY"),
                 "base_url": "https://openrouter.ai/api/v1",
-                "model_name": None,  # 使用時に動的に設定
+                "model_name": None,
                 "client_type": "openai",
-                "supports_vision": False,  # 画像入力対応モデルのみ True にしても OK
+                "supports_vision": False,
                 "system_role": "system",
                 "system_prompt": self.system_prompt,
                 "parameters": {},
@@ -285,7 +285,7 @@ class LLMSolver:
                         print(f"ポストプロセス後の応答: {fixed_response}")
                         raw_response = fixed_response # ポストプロセス後の応答を raw_response とする
                     else:
-                        print("ポストプロセス失敗")
+                        raise Exception("ポストプロセスに失敗しました")
 
                 return {
                     "model_used": model_key,
