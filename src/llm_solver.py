@@ -175,6 +175,9 @@ class LLMSolver:
             if model_key.startswith("gemini-"):
                 config = copy.deepcopy(self.models["gemini-flexible"])
                 config["model_name"] = model_key
+            elif model_key.startswith("hf.co/") or model_key.startswith("huggingface.co/"):
+                config = copy.deepcopy(self.models["ollama-flexible"])
+                config["model_name"] = model_key
             elif model_key.startswith("ollama-"):
                 config = copy.deepcopy(self.models["ollama-flexible"])
                 config["model_name"] = model_key.split("ollama-", 1)[1]
