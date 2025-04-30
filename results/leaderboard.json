@@ -152,5 +152,19 @@
         "no_image_correct": 256,
         "no_image_total": 297,
         "no_image_accuracy": 0.8619528619528619
+    },
+    "Qwen3-235B-A22B": {
+        "overall_score": 462.0,
+        "overall_possible_score": 500.0,
+        "overall_score_rate": 0.924,
+        "overall_correct": 366,
+        "overall_total": 400,
+        "overall_accuracy": 0.915,
+        "no_image_score": 356.0,
+        "no_image_possible_score": 383.0,
+        "no_image_score_rate": 0.9295039164490861,
+        "no_image_correct": 274,
+        "no_image_total": 297,
+        "no_image_accuracy": 0.9225589225589226
     }
 }
