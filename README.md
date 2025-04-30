@@ -2,7 +2,7 @@
 
 ## Overview
 
-IgakuQA119 is a repository designed to evaluate the performance of Large Language Models (LLMs) using the 119th Japanese Medical Licensing Examination (JMLE). This project, inspired by the [nmle-rta](https://github.com/iKora128/nmle-rta/tree/main) repository, assesses LLMs' comprehension and application abilities within the context of Japan's latest medical licensing exam. The dataset used for evaluation was obtained through a clean process, with details on acquisition provided [here](#dataset-acquisition). It supports evaluation using both cloud-based APIs (like OpenAI, Anthropic, Gemini) and local LLMs via Ollama.
+IgakuQA119 is a repository designed to **evaluate the performance of Large Language Models (LLMs) using the 119th Japanese Medical Licensing Examination (JMLE)**. This project, inspired by the [nmle-rta](https://github.com/iKora128/nmle-rta/tree/main) repository, assesses LLMs' comprehension and application abilities within the context of Japan's latest medical licensing exam. The dataset used for evaluation was obtained through a clean process, with details on acquisition provided [here](#dataset-acquisition). It supports evaluation using both cloud-based APIs (like **OpenAI, Anthropic, Gemini, OpenRouter**) and local LLMs via **Ollama**.
 
 ## Leaderboard
 
@@ -37,15 +37,15 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 uv sync
 ```
 
-### 1.2 Setting Environment Variables
+### 1.2 Setting Environment Variables (Optional, for Cloud LLMs)
 
 Copy `.env.example` to `.env` and set required API keys if you plan to use cloud-based LLMs:
 
 ```bash
 cp .env.example .env
-# Open .env and set necessary values (e.g., OPENAI_API_KEY, GEMINI_API_KEY)
+# Open .env and set necessary values
+# e.g., OPENAI_API_KEY, GEMINI_API_KEY, OPENROUTER_API_KEY
 ```
-*(Note: Environment variables are not strictly required for basic Ollama usage unless you need to configure a non-default Ollama host/port).*
 
 ### 1.3 Setting up Ollama (Optional, for Local LLMs)
 
@@ -55,7 +55,7 @@ If you want to use local LLMs (including models from Hugging Face):
 3.  Pull the desired model using the Ollama CLI (this might happen automatically when first referenced, depending on the model identifier used). For example:
     ```bash
     # Example for a specific Hugging Face GGUF model
-    ollama pull huggingface.co/mmnga/cyberagent-DeepSeek-R1-Distill-Qwen-32B-Japanese-gguf:Q4_K_M
+    ollama pull hf.co/mmnga/cyberagent-DeepSeek-R1-Distill-Qwen-32B-Japanese-gguf:Q4_K_M
     # Or a standard Ollama model
     ollama pull llama3
     ```
@@ -64,7 +64,9 @@ If you want to use local LLMs (including models from Hugging Face):
 
 You can solve the exam questions using either cloud-based LLM APIs or local models run via Ollama.
 
-### 2.1 Example: Using a Cloud LLM (Gemini 2.5 Pro)
+### 2.1 Example: Using Cloud LLMs
+
+#### Using a Direct API (e.g., Gemini 2.5 Pro)
 
 ```bash
 # Set variables for the experiment
@@ -79,20 +81,39 @@ for suffix in A B C D E F; do
 done
 ```
 
-### 2.2 Example: Using a Local LLM via Ollama (Hugging Face Model)
+#### Using OpenRouter (e.g., Qwen3)
+
+To use models via OpenRouter, ensure your `OPENROUTER_API_KEY` is set in the `.env` file. Specify the model name with the `openrouter-` prefix followed by the model identifier from OpenRouter (e.g., `qwen/qwen3-235b-a22b:free`).
+
+```bash
+# Set variables for the experiment
+EXP="Qwen3-235B-A22B"
+# Specify the model using the 'openrouter-' prefix and the OpenRouter model ID
+MODEL_NAME="openrouter-qwen/qwen3-235b-a22b:free"
+
+for suffix in A B C D E F; do
+  uv run main.py "questions/119${suffix}_json.json" \
+    --exp "119${suffix}_${EXP}" \
+    --models "${MODEL_NAME}"
+done
+```
+
+### 2.2 Example: Using Local LLMs via Ollama
 
 This example uses a specific GGUF model from Hugging Face, served locally via Ollama.
 
 **Prerequisite:** Ensure Ollama is installed and the service is running (see step 1.3). You might want to run the target model in a separate terminal first to ensure it's downloaded and ready, although the script might trigger the download if Ollama is configured correctly.
 
 ```bash
-# Optional: Run in a separate terminal to pre-load the model
-# ollama run huggingface.co/mmnga/cyberagent-DeepSeek-R1-Distill-Qwen-32B-Japanese-gguf:Q4_K_M
+# Run in a separate terminal to pre-load the model
+ollama run hf.co/mmnga/cyberagent-DeepSeek-R1-Distill-Qwen-32B-Japanese-gguf:Q4_K_M
+```
 
+```bash
 # Set variables for the experiment
 EXP="CA-DSR1-DQ32B-JP"
 # Specify the model using its Hugging Face identifier recognized by Ollama
-MODEL_NAME="huggingface.co/mmnga/cyberagent-DeepSeek-R1-Distill-Qwen-32B-Japanese-gguf:Q4_K_M"
+MODEL_NAME="hf.co/mmnga/cyberagent-DeepSeek-R1-Distill-Qwen-32B-Japanese-gguf:Q4_K_M"
 # Alternatively, use a standard Ollama model name like "ollama-llama3"
 
 # Run the evaluation script
@@ -103,9 +124,10 @@ for suffix in A B C D E F; do
 done
 ```
 
-**Note on Ollama Model Names:**
-*   Use the full Hugging Face identifier (like `huggingface.co/user/repo:tag`) if Ollama supports it directly.
-*   Alternatively, use the `ollama-<model_name>` prefix (e.g., `ollama-llama3`, `ollama-mistral`) for standard models pulled via Ollama. The script automatically routes requests to your local Ollama instance (`http://localhost:11434/v1` by default) for these identifiers.
+**Note on Model Names:**
+*   For **Cloud APIs (OpenAI, Anthropic, Gemini)**: Use the model names defined in `llm_solver.py` or the dynamic prefixes like `gemini-*`, `gpt-*`, `claude-*`.
+*   For **OpenRouter**: Use the `openrouter-` prefix followed by the OpenRouter model identifier (like `openrouter-<provider>/<model>`).
+*   For **Ollama**: Use the full Hugging Face identifier (like `hf.co/user/repo:tag`) if Ollama supports it directly, or use the `ollama-<model_name>` prefix (e.g., `ollama-llama3`, `ollama-mistral`) for standard models pulled via Ollama. The script automatically routes requests to your local Ollama instance (`http://localhost:11434/v1` by default) for these identifiers.
 
 ## 3. Grading Answers
 
@@ -142,7 +164,7 @@ Occasionally, questions might be skipped during the initial run (e.g., due to AP
 ### 5.1 Example Variable Setup
 
 ```bash
-# Original experiment suffix (cloud or local)
+# Original experiment code
 EXP="gemini-2.0-flash"
 # Corresponding model name used
 MODEL_NAME="gemini-2.0-flash-exp"
