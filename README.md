@@ -214,7 +214,7 @@ If questions were skipped during the initial run (e.g., due to errors), you can 
 experiments:
   # ...
   gemini-2_0-flash: # Example experiment that had skips
-    exp_suffix: "gemini-2_0-flash-2nd"
+    exp_suffix: "gemini-2_0-flash"
     model_name: "gemini-2.0-flash-exp"
     entry_name: "Gemini-2.0-Flash"
     needs_rerun: true # Enable the rerun workflow for this experiment

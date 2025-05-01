@@ -16,7 +16,7 @@ experiments:
     entry_name: "Gemini-2.5-Flash"
 
   gemini-2_0-flash:
-    exp_suffix: "gemini-2_0-flash-2nd"
+    exp_suffix: "gemini-2_0-flash"
     model_name: "gemini-2.0-flash-exp"
     entry_name: "Gemini-2.0-Flash"
 
