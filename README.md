@@ -2,7 +2,17 @@
 
 ## Overview
 
-IgakuQA119 is a repository designed to **evaluate the performance of Large Language Models (LLMs) using the 119th Japanese Medical Licensing Examination (JMLE)**. This project, inspired by the [nmle-rta](https://github.com/iKora128/nmle-rta/tree/main) repository, assesses LLMs' comprehension and application abilities within the context of Japan's latest medical licensing exam. The dataset used for evaluation was obtained through a clean process, with details on acquisition provided [here](#dataset-acquisition). It supports evaluation using both cloud-based APIs (like **OpenAI, Anthropic, Gemini, OpenRouter**) and local LLMs via **Ollama**.
+IgakuQA119 is a repository designed to **evaluate the performance of Large Language Models (LLMs) using the 119th Japanese Medical Licensing Examination (JMLE)**. This project, inspired by the [nmle-rta](https://github.com/iKora128/nmle-rta/tree/main) repository, assesses LLMs' comprehension and application abilities within the context of Japan's latest medical licensing exam.
+
+**Key Features:**
+
+*   **Comprehensive Evaluation:** Utilizes the complete 119th JMLE dataset.
+*   **Flexible LLM Support:** Supports cloud-based APIs (OpenAI, Anthropic, Gemini, OpenRouter) and local LLMs via Ollama.
+*   **Streamlined Workflow:** Manages experiments, grading, and comparisons using a configuration file (`experiments.yaml`) and a unified execution script (`run_exp.sh`).
+*   **Automated Leaderboard:** Automatically updates the performance leaderboard upon grading.
+*   **Transparent Data:** Provides details on dataset acquisition and preprocessing scripts.
+
+**(Note:** For the previous manual execution instructions, please refer to `docs/README_legacy_manual.md`.)
 
 ## Leaderboard
 
@@ -28,197 +38,249 @@ IgakuQA119 is a repository designed to **evaluate the performance of Large Langu
 
 ## 1. Setup Instructions
 
-**Note**: Requires Python 3.10 or higher.
+**Requirements**:
+*   Python 3.10 or higher.
+*   `uv` package manager.
+*   `yq` (Go version) for processing YAML configuration.
 
-### 1.1 Package Installation
+### 1.1 Install `uv` Dependencies
 
-Use `uv` to synchronize packages:
+Use `uv` to install Python packages:
 
 ```bash
+# Install uv if you haven't already
 curl -LsSf https://astral.sh/uv/install.sh | sh
+# Install packages defined in pyproject.toml
 uv sync
 ```
 
-### 1.2 Setting Environment Variables (Optional, for Cloud LLMs)
+### 1.2 Install `yq`
 
-Copy `.env.example` to `.env` and set required API keys if you plan to use cloud-based LLMs:
+The `run_exp.sh` script requires the **Go version** of `yq` (from Mike Farah). Install it using your preferred method:
+
+*   **Homebrew (macOS or Linux):**
+    ```bash
+    brew install yq
+    ```
+*   **Snap (Linux):**
+    ```bash
+    sudo snap install yq
+    ```
+*   **Other Methods:** See the official `yq` installation guide: [https://github.com/mikefarah/yq#install](https://github.com/mikefarah/yq#install)
+
+Verify installation: `yq --version` should show output like `yq (https://github.com/mikefarah/yq/) version v4.x.x`.
+
+### 1.3 Set Environment Variables (Optional, for Cloud LLMs)
+
+If you plan to use cloud-based LLMs (OpenAI, Gemini, Anthropic, OpenRouter), copy the example environment file and add your API keys:
 
 ```bash
 cp .env.example .env
-# Open .env and set necessary values
-# e.g., OPENAI_API_KEY, GEMINI_API_KEY, OPENROUTER_API_KEY
+# Open .env and set necessary values like:
+# OPENAI_API_KEY="sk-..."
+# GEMINI_API_KEY="..."
+# OPENROUTER_API_KEY="..."
 ```
+The scripts will automatically load these variables.
 
-### 1.3 Setting up Ollama (Optional, for Local LLMs)
+### 1.4 Set up Ollama (Optional, for Local LLMs)
 
-If you want to use local LLMs (including models from Hugging Face):
+To use local LLMs:
 1.  Install Ollama from [https://ollama.com/](https://ollama.com/).
-2.  Ensure the Ollama service is running.
-3.  Pull the desired model using the Ollama CLI (this might happen automatically when first referenced, depending on the model identifier used). For example:
-    ```bash
-    # Example for a specific Hugging Face GGUF model
-    ollama pull hf.co/mmnga/cyberagent-DeepSeek-R1-Distill-Qwen-32B-Japanese-gguf:Q4_K_M
-    # Or a standard Ollama model
-    ollama pull llama3
-    ```
+2.  Ensure the Ollama service is running (`ollama serve` or via the desktop application).
+3.  You can pull models beforehand using `ollama pull <model_name>`, or let the system attempt to pull them when first used via the script (depending on the model identifier).
 
-## 2. Solving Questions with LLMs
+### 1.5 Configure Experiments (`experiments.yaml`)
 
-You can solve the exam questions using either cloud-based LLM APIs or local models run via Ollama.
+All experiments, comparisons, and common settings are defined in the `experiments.yaml` file. Before running evaluations, review and potentially modify this file:
 
-### 2.1 Example: Using Cloud LLMs
+*   **`experiments`:** Define each LLM evaluation task. Set the `exp_suffix`, `model_name`, `entry_name` for the leaderboard, and optionally a `setup_command` (e.g., for Ollama) or `needs_rerun: true` if skipped question handling is anticipated.
+*   **`comparisons`:** Define pairs of experiments to compare using the `compare_wrong_answers.py` script.
+*   **`common_settings`:** Define shared parameters like question file suffixes and directory names.
 
-#### Using a Direct API (e.g., Gemini 2.5 Pro)
+See the comments within `experiments.yaml` for details on each field.
 
-```bash
-# Set variables for the experiment
-EXP="gemini-2.5-pro"
-# Use the model key defined in llm_solver.py or a dynamic key like gemini-*
-MODEL_NAME="gemini-2.5-pro-exp-03-25"
+## 2. Workflow using `run_exp.sh`
 
-for suffix in A B C D E F; do
-  uv run main.py "questions/119${suffix}_json.json" \
-    --exp "119${suffix}_${EXP}" \
-    --models "${MODEL_NAME}"
-done
-```
+The `run_exp.sh` script provides a unified interface for managing the evaluation workflow based on the `experiments.yaml` configuration.
 
-#### Using OpenRouter (e.g., Qwen3)
+**Basic Usage:**
+*   `./run_exp.sh -e <experiment_key>`
+*   `./run_exp.sh -t <task> -e <experiment_key>`
+*   `./run_exp.sh -p <comparison_key>`
 
-To use models via OpenRouter, ensure your `OPENROUTER_API_KEY` is set in the `.env` file. Specify the model name with the `openrouter-` prefix followed by the model identifier from OpenRouter (e.g., `qwen/qwen3-235b-a22b:free`).
+**Available Tasks (`-t` option):**
 
-```bash
-# Set variables for the experiment
-EXP="Qwen3-235B-A22B"
-# Specify the model using the 'openrouter-' prefix and the OpenRouter model ID
-MODEL_NAME="openrouter-qwen/qwen3-235b-a22b:free"
+*   `all` (Default): Runs `setup`, `run`, `rerun` (if needed), and `grade` for the specified experiment.
+*   `setup`: Executes the `setup_command` defined in `experiments.yaml` (e.g., start an Ollama model).
+*   `run`: Runs the main evaluation loop (`main.py`) for the experiment.
+*   `rerun`: Runs the skipped question handling process (`rerun_skipped.py` and `merge_results.py`) if `needs_rerun: true` is set for the experiment.
+*   `grade`: Grades the results (`grade_answers.py`) and updates the leaderboard.
+*   `compare`: Runs a comparison between two experiments defined in the `comparisons` section.
+*   `list-exp`: Lists all available experiment keys defined in `experiments.yaml`.
+*   `list-comp`: Lists all available comparison keys defined in `experiments.yaml`.
 
-for suffix in A B C D E F; do
-  uv run main.py "questions/119${suffix}_json.json" \
-    --exp "119${suffix}_${EXP}" \
-    --models "${MODEL_NAME}"
-done
-```
+**Target Specification:**
 
-### 2.2 Example: Using Local LLMs via Ollama
+*   `-e <experiment_key>`: Specifies the experiment key (from `experiments.yaml`) for tasks like `all`, `setup`, `run`, `rerun`, `grade`.
+*   `-p <comparison_key>`: Specifies the comparison key (from `experiments.yaml`) for the `compare` task.
 
-This example uses a specific GGUF model from Hugging Face, served locally via Ollama.
-
-**Prerequisite:** Ensure Ollama is installed and the service is running (see step 1.3). You might want to run the target model in a separate terminal first to ensure it's downloaded and ready, although the script might trigger the download if Ollama is configured correctly.
+**Examples:**
 
 ```bash
-# Run in a separate terminal to pre-load the model
-ollama run hf.co/mmnga/cyberagent-DeepSeek-R1-Distill-Qwen-32B-Japanese-gguf:Q4_K_M
+# Make the script executable once
+chmod +x run_exp.sh
+
+# List available experiments
+./run_exp.sh -t list-exp
+
+# List available comparisons
+./run_exp.sh -t list-comp
+
+# Run the full workflow: [Setup -> Run -> Rerun/Merge (if needed) -> Grade] for an experiment
+./run_exp.sh -e <experiment_key>
+# Example:
+./run_exp.sh -e gemini-2_5-pro
+./run_exp.sh -e ca-dsr1-dq32b-jp
+
+# Run only a specific task
+./run_exp.sh -t <task_name> -e <experiment_key>
+# Example Tasks: setup, run, rerun, grade
+
+# Run a comparison
+./run_exp.sh -p <comparison_key>
+# Example:
+./run_exp.sh -p base_vs_sft
 ```
+
+### Workflow Steps:
+
+#### Step 2.1: (Optional) Prepare Local Models
+
+If using Ollama, you might want to ensure the model is running before starting the main evaluation.
 
 ```bash
-# Set variables for the experiment
-EXP="CA-DSR1-DQ32B-JP"
-# Specify the model using its Hugging Face identifier recognized by Ollama
-MODEL_NAME="hf.co/mmnga/cyberagent-DeepSeek-R1-Distill-Qwen-32B-Japanese-gguf:Q4_K_M"
-# Alternatively, use a standard Ollama model name like "ollama-llama3"
-
-# Run the evaluation script
-for suffix in A B C D E F; do
-  uv run main.py "questions/119${suffix}_json.json" \
-    --exp "119${suffix}_${EXP}" \
-    --models "${MODEL_NAME}"
-done
+# Example: Start the CA-DSR1 model using its setup command
+./run_exp.sh -t setup -e ca-dsr1-dq32b-jp
 ```
+This executes the `setup_command` defined for `ca-dsr1-dq32b-jp` in `experiments.yaml`. Alternatively, run `ollama run <model_name>` in a separate terminal.
 
-**Note on Model Names:**
-*   For **Cloud APIs (OpenAI, Anthropic, Gemini)**: Use the model names defined in `llm_solver.py` or the dynamic prefixes like `gemini-*`, `gpt-*`, `claude-*`.
-*   For **OpenRouter**: Use the `openrouter-` prefix followed by the OpenRouter model identifier (like `openrouter-<provider>/<model>`).
-*   For **Ollama**: Use the full Hugging Face identifier (like `hf.co/user/repo:tag`) if Ollama supports it directly, or use the `ollama-<model_name>` prefix (e.g., `ollama-llama3`, `ollama-mistral`) for standard models pulled via Ollama. The script automatically routes requests to your local Ollama instance (`http://localhost:11434/v1` by default) for these identifiers.
+#### Step 2.2: Run Experiments
 
-## 3. Grading Answers
-
-Example script for grading answers generated in step 2:
+Execute the evaluation for a specific experiment defined in `experiments.yaml`.
 
 ```bash
-EXP="gemini-2.5-pro"
-ENTRY_NAME="Gemini-2.5-Pro" # Desired name for the Leaderboard entry
+# Example: Run evaluation using Gemini 2.5 Pro
+./run_exp.sh -e gemini-2_5-pro
 
-uv run grade_answers.py \
-  --json_paths $(ls answers/119{A,B,C,D,E,F}_${EXP}.json) \
-  --entry_name "${ENTRY_NAME}"
+# Example: Run evaluation using a local Ollama model
+./run_exp.sh -e qwen3-32b
 ```
+This will iterate through the question files (A-F) and run `main.py` with the `model_name` and `exp_suffix` specified in the YAML for the given experiment key. Answer files will be saved in the `answers/` directory.
 
-**This script automatically updates the Leaderboard section in this README file** with the consolidated results based on the processed JSON files. It also saves detailed grading results (e.g., score summaries, wrong answer lists) into the specified output directory (default: `results/`).
+#### Step 2.3: Grade Results
 
-**You can find example output files from a sample run in the `results/demo/` directory.** This can help you understand the structure and content of the files generated by the grading script.
-
-## 4. Comparing LLM Answers and Analysis
-
-Beyond basic grading, you can compare the incorrect answers between two different LLM experiments to analyze their differing strengths and weaknesses.
-
-The `scripts/compare_wrong_answers.py` script facilitates this by:
-- Identifying questions answered incorrectly by both models, or only by one.
-- Generating detailed comparison reports in CSV and Markdown formats (split by comparison type).
-- Optionally using a specified LLM (like Gemini or GPT-4o) to provide an analytical summary of the comparison.
-
-For detailed usage instructions, see the [Scripts README](./scripts/README.md).
-
-## 5. Handling Skipped Questions
-
-Occasionally, questions might be skipped during the initial run (e.g., due to API errors, timeouts, or local model issues). The following steps describe how to re-run only the skipped questions, merge the results with the original run, and then grade the complete set.
-
-### 5.1 Example Variable Setup
+After an experiment completes, grade the generated answers.
 
 ```bash
-# Original experiment code
-EXP="gemini-2.0-flash"
-# Corresponding model name used
-MODEL_NAME="gemini-2.0-flash-exp"
-# Leaderboard entry name
-ENTRY_NAME="Gemini-2.0-Flash"
-
-# File listing skipped question IDs, typically generated during the initial run
-SKIPPED_LIST="results/119_${EXP}_skipped.txt"
-# Suffix for the retry experiment files
-RERUN_EXP="${EXP}_retry"
-# Suffix for the merged experiment files
-MERGED_EXP="${EXP}_merged"
+# Example: Grade the results for Gemini 2.5 Pro
+./run_exp.sh -t grade -e gemini-2_5-pro
 ```
+This runs `grade_answers.py`, using the `exp_suffix` (or the merged suffix if re-run occurred) and `entry_name` from the YAML. **It automatically updates the Leaderboard in this README** and saves detailed results in the `results/` directory.
 
-### 5.2 Workflow Commands for Skipped Questions
+**Demo results** can be found in `results/demo/` to understand the output format.
 
-The following sequence of commands performs the complete workflow for handling skipped questions:
-1.  **Re-run Skipped:** Process only the questions listed in the `skipped_list` using `rerun_skipped.py`. The results will be saved with the `RERUN_EXP` suffix.
-2.  **Merge Results:** Combine the original answers (from the `EXP` run) and the re-run answers (from the `RERUN_EXP` run) into a new, complete set using `scripts/merge_results.py`. The merged results will have the `MERGED_EXP` suffix.
-3.  **Grade Merged:** Grade the complete, merged answer set using `grade_answers.py` and update the leaderboard with the specified `ENTRY_NAME`.
+#### Step 2.4: (Optional) Compare Results
+
+Compare the performance of two different experiments.
 
 ```bash
-# 1. Re-run Skipped Questions
-uv run rerun_skipped.py \
-  --skipped_list "${SKIPPED_LIST}" \
-  --models "${MODEL_NAME}" \
-  --questions_dir questions \
-  --rerun_exp "${RERUN_EXP}"
-
-# 2. Merge Results
-uv run scripts/merge_results.py \
-  --original_pattern "answers/119*_${EXP}.json" \
-  --retry_pattern "answers/119*_${RERUN_EXP}.json" \
-  --merged_exp "${MERGED_EXP}"
-
-# 3. Grade Merged Results
-uv run grade_answers.py \
-  --json_paths $(ls answers/119{A,B,C,D,E,F}_${MERGED_EXP}.json) \
-  --entry_name "${ENTRY_NAME}" \
-  --output results
+# Example: Compare the base CA-DSR1 model vs its SFT variant
+./run_exp.sh -p base_vs_sft
 ```
+This uses the `compare_wrong_answers.py` script with the models and analyzer defined for the `base_vs_sft` key in the `comparisons` section of `experiments.yaml`. Comparison reports are saved in the `results/` directory. See `scripts/README.md` for more details on the comparison script.
+
+## 3. Handling Skipped Questions
+
+If questions were skipped during the initial run (e.g., due to errors), you can re-run them and merge the results.
+
+### 3.1 Configuration
+
+1.  Ensure the `grade_answers.py` script generated a `results/119_<exp_suffix>_skipped.txt` file during the initial grading attempt (or the `main.py` run created one).
+2.  In `experiments.yaml`, find the entry for the experiment that had skipped questions.
+3.  **Uncomment or add the line `needs_rerun: true`** within that experiment's definition.
+
+```yaml
+experiments:
+  # ...
+  gemini-2_0-flash: # Example experiment that had skips
+    exp_suffix: "gemini-2_0-flash-2nd"
+    model_name: "gemini-2.0-flash-exp"
+    entry_name: "Gemini-2.0-Flash"
+    needs_rerun: true # Enable the rerun workflow for this experiment
+  # ...
+```
+
+### 3.2 Execution
+
+You have two main options:
+
+**Option A: Run the dedicated `rerun` task, then `grade`:**
+
+```bash
+# 1. Rerun skipped questions and merge results
+./run_exp.sh -t rerun -e gemini-2_0-flash
+
+# 2. Grade the merged results
+./run_exp.sh -t grade -e gemini-2_0-flash
+```
+The `rerun` task executes `rerun_skipped.py` (creating `*_retry.json` files) and then `scripts/merge_results.py` (creating `*_merged.json` files). The subsequent `grade` task will automatically detect and use the `*_merged.json` files for grading.
+
+**Option B: Run the `all` task:**
+
+```bash
+# Rerun everything, including skipped handling if needed
+./run_exp.sh -e gemini-2_0-flash
+```
+If `needs_rerun: true` is set, the `all` task will automatically perform the `rerun` steps *after* the main `run` step (if any new answers were generated) and *before* the final `grade` step.
+
+This streamlined process ensures that all available answers (original + retried) are considered for the final grading and leaderboard update.
+
+## 4. Configuration Details (`experiments.yaml`)
+
+The `experiments.yaml` file is central to managing evaluations.
+
+*   **`experiments:`**: A dictionary where each key is a unique identifier for an experiment (e.g., `gemini-2_5-pro`).
+    *   `exp_suffix`: String used in filenames for answers and results related to this experiment.
+    *   `model_name`: The identifier passed to the solver. Naming conventions:
+        *   **Cloud APIs (OpenAI, Anthropic, Gemini)**: Use names defined in `llm_solver.py` or dynamic prefixes like `gemini-*`, `gpt-*`, `claude-*`.
+        *   **OpenRouter**: Use `openrouter-<provider>/<model_id>:<version>` (e.g., `openrouter-qwen/qwen3-235b-a22b:free`). Requires `OPENROUTER_API_KEY` in `.env`.
+        *   **Ollama**: Use `ollama-<model_name>` (e.g., `ollama-llama3`) for standard Ollama models, or the full Hugging Face GGUF identifier if supported (e.g., `hf.co/user/repo:tag`). The script routes these to `http://localhost:11434/v1`.
+    *   `entry_name`: The name displayed in the leaderboard for this experiment.
+    *   `setup_command` (Optional): A shell command executed by the `setup` task (e.g., `ollama run ...`).
+    *   `needs_rerun` (Optional): Set to `true` to enable the skipped question handling workflow for this experiment.
+*   **`comparisons:`**: A dictionary defining comparison pairs.
+    *   `model1_key`, `model2_key`: Experiment keys (from the `experiments` section) to compare.
+    *   `analyzer`: The LLM model name used by `compare_wrong_answers.py` for analysis.
+*   **`common_settings:`**: Shared parameters.
+    *   `question_suffixes`: List of suffixes for question files (e.g., `["A", "B", "C", "D", "E", "F"]`).
+    *   `questions_dir`, `answers_dir`, `results_dir`: Directory paths.
+    *   `question_prefix`: Prefix for question filenames (e.g., `"119"`).
+
+## Legacy Manual Workflow
+
+For reference, the previous manual execution steps (without the `run_exp.sh` script) are archived in [docs/README_20250501_legacy_manual.md](docs/README_20250501_legacy_manual.md).
 
 ## Dataset Acquisition
 
-The question components of the dataset (question text, choices, images) were created by the author of the original repository ([nmle-rta](https://github.com/iKora128/nmle-rta/tree/main)) by processing PDFs of the actual exam questions using OCR. Direct permission was obtained from the original author to use and publish this data.
+The question components (text, choices, images) were processed from official exam PDFs using OCR by the author of the original [nmle-rta](https://github.com/iKora128/nmle-rta/tree/main) repository. Permission for use and publication was obtained.
 
-The grading logic, including correct answers and handling of special cases like excluded questions, was developed by the author of this repository based on official information published by the Ministry of Health, Labour and Welfare (MHLW) of Japan: [第１１９回医師国家試験の合格発表について](https://www.mhlw.go.jp/general/sikaku/successlist/2025/siken01/about.html).
+The grading logic (correct answers, excluded questions handling) was developed based on official MHLW information: [第１１９回医師国家試験の合格発表について](https://www.mhlw.go.jp/general/sikaku/successlist/2025/siken01/about.html).
 
-All scripts used to create the complete dataset are publicly available in the `scripts/prepro_utils` directory of this repository for transparency.
+Preprocessing scripts are available in `scripts/prepro_utils` for transparency.
 
 ## License
 
-This repository is licensed under the Apache License 2.0. For details, see the [LICENSE](LICENSE) file.
+This repository is licensed under the Apache License 2.0. See the [LICENSE](LICENSE) file.
 
-The original repository [nmle-rta](https://github.com/iKora128/nmle-rta/tree/main) is also licensed under Apache License 2.0, as authorized by the original author.
+The original repository [nmle-rta](https://github.com/iKora128/nmle-rta/tree/main) is also licensed under Apache License 2.0.

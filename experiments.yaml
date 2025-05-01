@@ -1,0 +1,102 @@
+# experiments.yaml
+
+# List of all experiments configurations
+experiments:
+
+  # via Gemini API
+  gemini-2_5-pro:
+    exp_suffix: "gemini-2_5-pro"
+    model_name: "gemini-2.5-pro-exp-03-25"
+    entry_name: "Gemini-2.5-Pro"
+    # needs_rerun: true # Uncomment if the experiment needs to be rerun
+
+  gemini-2_5-flash:
+    exp_suffix: "gemini-2_5-flash"
+    model_name: "gemini-2.5-flash-preview-04-17"
+    entry_name: "Gemini-2.5-Flash"
+
+  gemini-2_0-flash:
+    exp_suffix: "gemini-2_0-flash-2nd"
+    model_name: "gemini-2.0-flash-exp"
+    entry_name: "Gemini-2.0-Flash"
+
+  # via OpenRouter
+  deepseek-r1:
+    exp_suffix: "deepseek-r1"
+    model_name: "openrouter-deepseek/deepseek-r1:free"
+    entry_name: "DeepSeek-R1"
+
+  qwen3-235b-a22b:
+    exp_suffix: "qwen3-235b-a22b"
+    model_name: "openrouter-qwen/qwen3-235b-a22b:free"
+    entry_name: "Qwen3-235B-A22B"
+  
+  # via Ollama
+  qwen3-32b:
+    exp_suffix: "qwen3-32b"
+    model_name: "ollama-qwen3:32b"
+    entry_name: "Qwen3-32B"
+    setup_command: "ollama run qwen3:32b"
+
+  qwen3-30b-a3b:
+    exp_suffix: "qwen3-30b-a3b"
+    model_name: "ollama-qwen3:30b-a3b"
+    entry_name: "Qwen3-30B-A3B"
+    setup_command: "ollama run qwen3:30b-a3b"
+
+  cogito-32b-think:
+    exp_suffix: "cogito-32b-think"
+    model_name: "ollama-cogito:32b"
+    entry_name: "Cogito-32B-Think"
+    setup_command: "ollama run cogito:32b" # Enable deep thinking subroutine.
+
+  cogito-32b-no-think:
+    exp_suffix: "cogito-32b-no-think"
+    model_name: "ollama-cogito:32b"
+    entry_name: "Cogito-32B-No-Think"
+    setup_command: "ollama run cogito:32b" # Disable deep thinking subroutine.
+
+  ca-dsr1-dq32b-jp:
+    exp_suffix: "ca-dsr1-dq32b-jp"
+    model_name: "hf.co/mmnga/cyberagent-DeepSeek-R1-Distill-Qwen-32B-Japanese-gguf:Q4_K_M"
+    entry_name: "CA-DSR1-DQ32B-JP"
+    setup_command: "ollama run hf.co/mmnga/cyberagent-DeepSeek-R1-Distill-Qwen-32B-Japanese-gguf:Q4_K_M"
+
+  ca-dsr1-dq32b-jp-sft:
+    exp_suffix: "ca-dsr1-dq32b-jp-sft"
+    model_name: "hf.co/doctorin/CA-DeepSeek-R1-D-Qwen-32B-Jp-SFT-GGUF:Q4_K_M"
+    entry_name: "CA-DSR1-DQ32B-JP-SFT"
+    setup_command: "ollama run hf.co/doctorin/CA-DeepSeek-R1-D-Qwen-32B-Jp-SFT-GGUF:Q4_K_M"
+
+  ca-dsr1-dq32b-jp-cpt:
+    exp_suffix: "ca-dsr1-dq32b-jp-cpt"
+    model_name: "hf.co/doctorin/CA-DeepSeek-R1-D-Qwen-32B-Jp-CPT-GGUF:Q4_K_M"
+    entry_name: "CA-DSR1-DQ32B-JP-CPT"
+    setup_command: "ollama run hf.co/doctorin/CA-DeepSeek-R1-D-Qwen-32B-Jp-CPT-GGUF:Q4_K_M"
+
+# Definitions for comparison tasks
+comparisons:
+  base_vs_sft:
+    model1_key: "ca-dsr1-dq32b-jp" # Key from 'experiments' section
+    model2_key: "ca-dsr1-dq32b-jp-sft" # Key from 'experiments' section
+    analyzer: "gemini-2.5-pro-exp-03-25"
+  base_vs_cpt:
+    model1_key: "ca-dsr1-dq32b-jp"
+    model2_key: "ca-dsr1-dq32b-jp-cpt"
+    analyzer: "gemini-2.5-pro-exp-03-25"
+  sft_vs_cpt:
+    model1_key: "ca-dsr1-dq32b-jp-sft"
+    model2_key: "ca-dsr1-dq32b-jp-cpt"
+    analyzer: "gemini-2.5-pro-exp-03-25"
+  gemini_vs_qwen235b:
+    model1_key: "gemini-2.5-pro"
+    model2_key: "qwen3-235b-a22b"
+    analyzer: "gemini-2.5-pro-exp-03-25"
+
+# Common settings (can be overridden in specific experiments if needed)
+common_settings:
+  question_suffixes: ["A", "B", "C", "D", "E", "F"]
+  questions_dir: "questions"
+  answers_dir: "answers"
+  results_dir: "results"
+  question_prefix: "119"
