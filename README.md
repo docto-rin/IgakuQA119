@@ -106,52 +106,66 @@ See the comments within `experiments.yaml` for details on each field.
 The `run_exp.sh` script provides a unified interface for managing the evaluation workflow based on the `experiments.yaml` configuration.
 
 **Basic Usage:**
-*   `./run_exp.sh -e <experiment_key>`
-*   `./run_exp.sh -t <task> -e <experiment_key>`
-*   `./run_exp.sh -p <comparison_key>`
+
+The script is executed using the following basic syntax:
+
+```bash
+./run_exp.sh [OPTIONS]
+```
+
+**Options:**
+
+*   `-e <experiment_key>`: Specifies the target **experiment** defined in `experiments.yaml`. Used for tasks like running evaluations (`run`), grading (`grade`), or the full workflow (`all`).
+*   `-p <comparison_key>`: Specifies the target **comparison** defined in `experiments.yaml`. Used only for the `compare` task.
+*   `-t <task>`: Specifies the **task** to perform. If omitted, the default task is `all`.
 
 **Available Tasks (`-t` option):**
 
-*   `all` (Default): Runs `setup`, `run`, `rerun` (if needed), and `grade` for the specified experiment.
-*   `setup`: Executes the `setup_command` defined in `experiments.yaml` (e.g., start an Ollama model).
-*   `run`: Runs the main evaluation loop (`main.py`) for the experiment.
-*   `rerun`: Runs the skipped question handling process (`rerun_skipped.py` and `merge_results.py`) if `needs_rerun: true` is set for the experiment.
-*   `grade`: Grades the results (`grade_answers.py`) and updates the leaderboard.
-*   `compare`: Runs a comparison between two experiments defined in the `comparisons` section.
-*   `list-exp`: Lists all available experiment keys defined in `experiments.yaml`.
-*   `list-comp`: Lists all available comparison keys defined in `experiments.yaml`.
-
-**Target Specification:**
-
-*   `-e <experiment_key>`: Specifies the experiment key (from `experiments.yaml`) for tasks like `all`, `setup`, `run`, `rerun`, `grade`.
-*   `-p <comparison_key>`: Specifies the comparison key (from `experiments.yaml`) for the `compare` task.
+*   `all` (Default): Runs the complete workflow for an experiment: `setup` -> `run` -> `rerun` (if `needs_rerun: true`) -> `grade`.
+*   `setup`: Executes the optional `setup_command` defined for the experiment in `experiments.yaml` (e.g., `ollama run ...` to start a local model).
+*   `run`: Runs the main evaluation script (`main.py`) for the specified experiment, generating answer files.
+*   `rerun`: Handles skipped questions for an experiment (requires `needs_rerun: true` in YAML). It runs `rerun_skipped.py` and `scripts/merge_results.py`.
+*   `grade`: Grades the answer files for the specified experiment using `grade_answers.py` and updates the leaderboard in this README. It automatically uses merged results if they exist.
+*   `compare`: Runs a comparison between two experiments defined by the `<comparison_key>` using `compare_wrong_answers.py`. Requires the `-p` option.
+*   `list-exp`: Lists all available experiment keys defined under `experiments:` in `experiments.yaml`.
+*   `list-comp`: Lists all available comparison keys defined under `comparisons:` in `experiments.yaml`.
 
 **Examples:**
 
 ```bash
-# Make the script executable once
+# Make the script executable (only need to do this once)
 chmod +x run_exp.sh
 
-# List available experiments
+# --- Listing available configurations ---
+# List all defined experiment keys
 ./run_exp.sh -t list-exp
 
-# List available comparisons
+# List all defined comparison keys
 ./run_exp.sh -t list-comp
 
-# Run the full workflow: [Setup -> Run -> Rerun/Merge (if needed) -> Grade] for an experiment
-./run_exp.sh -e <experiment_key>
-# Example:
+# --- Running a full experiment workflow ---
+# Run the default 'all' task (setup, run, rerun if needed, grade) for a specific experiment
 ./run_exp.sh -e gemini-2_5-pro
-./run_exp.sh -e ca-dsr1-dq32b-jp
+./run_exp.sh -e ca-dsr1-dq32b-jp # Example with a local model experiment
 
-# Run only a specific task
-./run_exp.sh -t <task_name> -e <experiment_key>
-# Example Tasks: setup, run, rerun, grade
+# --- Running specific tasks for an experiment ---
+# Only run the setup command for a local model experiment
+./run_exp.sh -t setup -e ca-dsr1-dq32b-jp
 
-# Run a comparison
-./run_exp.sh -p <comparison_key>
-# Example:
-./run_exp.sh -p base_vs_sft
+# Only run the evaluation (generate answers)
+./run_exp.sh -t run -e gemini-2_5-pro
+
+# Only handle skipped questions (rerun and merge)
+./run_exp.sh -t rerun -e gemini-2_0-flash # Assumes needs_rerun: true is set
+
+# Only grade the results (and update leaderboard)
+./run_exp.sh -t grade -e gemini-2_5-pro
+
+# --- Running a comparison ---
+# Run a predefined comparison between two experiments
+./run_exp.sh -p base_vs_sft # Uses the 'compare' task implicitly with -p
+# Equivalent explicit command:
+# ./run_exp.sh -t compare -p base_vs_sft
 ```
 
 ### Workflow Steps:
