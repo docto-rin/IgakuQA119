@@ -10,9 +10,9 @@ IgakuQA119 is a repository designed to **evaluate the performance of Large Langu
 *   **Flexible LLM Support:** Supports cloud-based APIs (OpenAI, Anthropic, Gemini, OpenRouter) and local LLMs via Ollama.
 *   **Streamlined Workflow:** Manages experiments, grading, and comparisons using a configuration file (`experiments.yaml`) and a unified execution script (`run_exp.sh`).
 *   **Automated Leaderboard:** Automatically updates the performance leaderboard upon grading.
-*   **Transparent Data:** Provides details on dataset acquisition and preprocessing scripts.
+*   **Transparent Data:** Provides [details](#dataset-acquisition) on dataset acquisition and preprocessing scripts.
 
-**(Note:** For the previous manual execution instructions, please refer to `docs/README_legacy_manual.md`.)
+**(Note:** For reference, the previous manual execution steps (without the `run_exp.sh` script) are archived in [docs/README_20250501_legacy_manual.md](docs/README_20250501_legacy_manual.md).)
 
 ## Leaderboard
 
@@ -172,10 +172,10 @@ Execute the evaluation for a specific experiment defined in `experiments.yaml`.
 
 ```bash
 # Example: Run evaluation using Gemini 2.5 Pro
-./run_exp.sh -e gemini-2_5-pro
+./run_exp.sh -t run -e gemini-2_5-pro
 
 # Example: Run evaluation using a local Ollama model
-./run_exp.sh -e qwen3-32b
+./run_exp.sh -t run -e qwen3-32b
 ```
 This will iterate through the question files (A-F) and run `main.py` with the `model_name` and `exp_suffix` specified in the YAML for the given experiment key. Answer files will be saved in the `answers/` directory.
 
@@ -268,10 +268,6 @@ The `experiments.yaml` file is central to managing evaluations.
     *   `question_suffixes`: List of suffixes for question files (e.g., `["A", "B", "C", "D", "E", "F"]`).
     *   `questions_dir`, `answers_dir`, `results_dir`: Directory paths.
     *   `question_prefix`: Prefix for question filenames (e.g., `"119"`).
-
-## Legacy Manual Workflow
-
-For reference, the previous manual execution steps (without the `run_exp.sh` script) are archived in [docs/README_20250501_legacy_manual.md](docs/README_20250501_legacy_manual.md).
 
 ## Dataset Acquisition
 
