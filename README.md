@@ -260,6 +260,7 @@ The `experiments.yaml` file is central to managing evaluations.
     *   `entry_name`: The name displayed in the leaderboard for this experiment.
     *   `setup_command` (Optional): A shell command executed by the `setup` task (e.g., `ollama run ...`).
     *   `needs_rerun` (Optional): Set to `true` to enable the skipped question handling workflow for this experiment.
+    *   `supports_vision` (Optional): Set to `true` or `false` to explicitly control whether the model should attempt to use vision capabilities for this experiment. If omitted, the default setting defined in `llm_solver.py` for the model type (e.g., `gemini-flexible`, `ollama-flexible`) is used.
 *   **`comparisons:`**: A dictionary defining comparison pairs.
     *   `model1_key`, `model2_key`: Experiment keys (from the `experiments` section) to compare.
     *   `analyzer`: The LLM model name used by `compare_wrong_answers.py` for analysis.

@@ -194,9 +194,14 @@ class LLMSolver:
             client = OpenAI(**client_args)
             return config, client
 
-    def solve_question(self, question: Dict, model_key: str) -> Dict:
+    def solve_question(self, question: Dict, model_key: str, supports_vision_override: Optional[bool] = None) -> Dict:
         """1つの問題を解く"""
         config, client = self.get_config_and_client(model_key)
+
+        # Override supports_vision if provided
+        if supports_vision_override is not None:
+            print(f"Overriding supports_vision for {model_key} to {supports_vision_override}")
+            config["supports_vision"] = supports_vision_override
 
         # 問題文を構築
         prompt = f"""問題：{question['question']}
@@ -228,19 +233,47 @@ class LLMSolver:
 
                     if config["supports_vision"] and question.get("has_image", False):
                         image_paths = self.get_question_images(question["number"])
-                        content = [{"type": "text", "text": prompt}]
-                        for image_path in image_paths:
-                            base64_image = self.encode_image(image_path)
-                            content.append({
-                                "type": "image_url",
-                                "image_url": {
-                                    "url": f"data:image/jpeg;base64,{base64_image}"
-                                }
-                            })
-                        messages = [
+                        if not image_paths:
+                             print(f"Warning: Question {question['number']} has 'has_image=True' but no image files found.")
+                             # 画像がない場合は通常のテキストプロンプトに戻すか、エラーにするか選択
+                             # ここではテキストのみで続行
+                             messages = [
+                                {"role": config["system_role"], "content": config["system_prompt"]},
+                                {"role": "user", "content": prompt}
+                             ]
+                        else:
+                            content = [{"type": "text", "text": prompt}]
+                            for image_path in image_paths:
+                                try:
+                                    base64_image = self.encode_image(image_path)
+                                    content.append({
+                                        "type": "image_url",
+                                        "image_url": {
+                                            "url": f"data:image/jpeg;base64,{base64_image}"
+                                        }
+                                    })
+                                except FileNotFoundError:
+                                    print(f"Warning: Image file not found: {image_path}")
+                                    continue # Skip this image if not found
+
+                            # 画像が一つも見つからなかった場合への対応
+                            if len(content) == 1: # Only text part exists
+                                print(f"Warning: No valid images found for question {question['number']} despite supports_vision=True and has_image=True.")
+                                messages = [
+                                    {"role": config["system_role"], "content": config["system_prompt"]},
+                                    {"role": "user", "content": prompt}
+                                ]
+                            else:
+                                messages = [
+                                    {"role": config["system_role"], "content": config["system_prompt"]},
+                                    {"role": "user", "content": content}
+                                ]
+                    else: # Vision not supported or no image flag
+                         messages = [
                             {"role": config["system_role"], "content": config["system_prompt"]},
-                            {"role": "user", "content": content}
-                        ]
+                            {"role": "user", "content": prompt}
+                         ]
+
 
                     response = client.chat.completions.create(
                         model=config["model_name"],
@@ -301,7 +334,7 @@ class LLMSolver:
                         "timestamp": datetime.now().isoformat()
                     }
 
-    def process_questions(self, questions: List[Dict], models: Optional[List[str]] = None, file_exp: Optional[str] = None) -> List[Dict]:
+    def process_questions(self, questions: List[Dict], models: Optional[List[str]] = None, file_exp: Optional[str] = None, supports_vision_override_str: Optional[str] = None) -> List[Dict]:
         """全ての問題を処理"""
         if models is None:
             models = list(self.models.keys())
@@ -309,6 +342,17 @@ class LLMSolver:
         results = []
         if file_exp is None:
             file_exp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+        # Convert string override to boolean
+        supports_vision_override: Optional[bool] = None
+        if supports_vision_override_str is not None:
+            if supports_vision_override_str.lower() == 'true':
+                supports_vision_override = True
+            elif supports_vision_override_str.lower() == 'false':
+                supports_vision_override = False
+            else:
+                print(f"Warning: Invalid value for --supports_vision '{supports_vision_override_str}'. Expected 'true' or 'false'. Ignoring override.")
+
 
         # 進捗バーを追加
         for question in tqdm(questions, desc="問題を処理中"):
@@ -318,7 +362,8 @@ class LLMSolver:
             }
 
             for model in tqdm(models, desc=f"問題 {question['number']} をモデルで解析中", leave=False):
-                answer = self.solve_question(question, model)
+                # Pass the boolean override to solve_question
+                answer = self.solve_question(question, model, supports_vision_override=supports_vision_override)
                 question_result["answers"].append(answer)
 
             results.append(question_result)
@@ -326,7 +371,7 @@ class LLMSolver:
             # 問題ごとに同じファイルに追記形式で保存
             try:
                 self.output_processor.process_outputs(results, file_exp)
-                print(f"問題 {question['number']} の結果を保存しました")
+                # print(f"問題 {question['number']} の結果を保存しました") # tqdmがあるのでコメントアウト推奨
             except Exception as e:
                 print(f"結果の保存中にエラーが発生: {str(e)}")
 

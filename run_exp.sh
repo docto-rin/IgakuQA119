@@ -26,7 +26,7 @@ get_config_value() {
     echo "$default_val"
   else
     echo "$value"
-  fi
+  end
 }
 
 # Get a list (array) from the YAML config
@@ -94,9 +94,11 @@ run_experiment() {
   local exp_key=$1
   echo "--- Running Experiment: $exp_key ---"
 
-  local exp_suffix model_name questions_dir answers_dir question_prefix
+  local exp_suffix model_name questions_dir answers_dir question_prefix supports_vision
   exp_suffix=$(get_config_value ".experiments.${exp_key}.exp_suffix")
   model_name=$(get_config_value ".experiments.${exp_key}.model_name")
+  # Read supports_vision, default to empty string if null or not present
+  supports_vision=$(get_config_value ".experiments.${exp_key}.supports_vision")
   questions_dir=$(get_config_value ".common_settings.questions_dir" "questions")
   answers_dir=$(get_config_value ".common_settings.answers_dir" "answers")
   question_prefix=$(get_config_value ".common_settings.question_prefix" "119")
@@ -111,9 +113,20 @@ run_experiment() {
 
   mkdir -p "$answers_dir" # Ensure answers directory exists
 
+  # Base command template
   local cmd_template='uv run main.py "{q_path}" --exp "{exp_name}" --models "{model}"'
+  # Add supports_vision argument only if it's defined in yaml
+  local supports_vision_arg=""
+  if [[ -n "$supports_vision" ]]; then
+      supports_vision_arg=" --supports_vision \"${supports_vision}\""
+  fi
+
   echo "Model: $model_name"
   echo "Experiment Suffix: $exp_suffix"
+  # Display supports_vision status if set
+  if [[ -n "$supports_vision" ]]; then
+      echo "Supports Vision (Override): $supports_vision"
+  fi
   echo "Question Files:"
 
   for suffix in "${suffixes[@]}"; do
@@ -121,7 +134,9 @@ run_experiment() {
     local q_path="${questions_dir}/${q_file}"
     local exp_name="${question_prefix}${suffix}_${exp_suffix}"
     local cmd
+    # Build the command, substituting placeholders and adding the optional argument
     cmd=$(echo "$cmd_template" | sed "s|{q_path}|$q_path|" | sed "s|{exp_name}|$exp_name|" | sed "s|{model}|$model_name|")
+    cmd+="$supports_vision_arg" # Append the vision argument if it exists
 
     if [[ ! -f "$q_path" ]]; then
         echo "Warning: Question file not found: $q_path. Skipping." >&2
@@ -218,7 +233,7 @@ run_grade() {
   merged_exp="${exp_suffix}_merged"
 
   local -a suffixes
-  get_config_list ".common_settings.question_suffixes" suffixes
+  get_config_list(".common_settings.question_suffixes" suffixes)
 
   if [[ -z "$exp_suffix" || -z "$entry_name" ]]; then
     echo "Error: exp_suffix or entry_name not defined for $exp_key" >&2

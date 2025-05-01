@@ -8,6 +8,7 @@ experiments:
     exp_suffix: "gemini-2_5-pro"
     model_name: "gemini-2.5-pro-exp-03-25"
     entry_name: "Gemini-2.5-Pro"
+    # supports_vision: true # Explicitly set (matches default for gemini-flexible)
     # needs_rerun: true # Uncomment if the experiment needs to be rerun
 
   gemini-2_5-flash:
@@ -21,6 +22,12 @@ experiments:
     entry_name: "Gemini-2.0-Flash"
 
   # via OpenRouter
+  gpt-4o-mini:
+    exp_suffix: "gpt-4o-mini"
+    model_name: "openrouter-openai/gpt-4o-mini"
+    entry_name: "GPT-4o-mini"
+    supports_vision: true
+
   deepseek-r1:
     exp_suffix: "deepseek-r1"
     model_name: "openrouter-deepseek/deepseek-r1:free"
@@ -37,6 +44,9 @@ experiments:
     model_name: "ollama-qwen3:32b"
     entry_name: "Qwen3-32B"
     setup_command: "ollama run qwen3:32b"
+    # supports_vision: false # Explicitly set (matches default for ollama-flexible)
+    # If you had an Ollama model that *did* support vision via the OpenAI API:
+    # supports_vision: true
 
   qwen3-30b-a3b:
     exp_suffix: "qwen3-30b-a3b"
@@ -55,6 +65,12 @@ experiments:
     model_name: "ollama-cogito:32b"
     entry_name: "Cogito-32B-No-Think"
     setup_command: "ollama run cogito:32b" # Disable deep thinking subroutine.
+
+  qwq-32b:
+    exp_suffix: "qwq-32b"
+    model_name: "ollama-qwq:32b"
+    entry_name: "QWQ-32B"
+    setup_command: "ollama run qwq:32b"
 
   ca-dsr1-dq32b-jp:
     exp_suffix: "ca-dsr1-dq32b-jp"

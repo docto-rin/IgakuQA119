@@ -24,6 +24,12 @@ def main():
         default=None,
         help="結果ファイルの識別子。指定しない場合はタイムスタンプが使用されます (例: baseline)"
     )
+    parser.add_argument(
+        "--supports_vision",
+        type=str, # Accept as string initially
+        default=None,
+        help="Override vision support setting (true/false). If not provided, uses default from llm_solver."
+    )
     
     args = parser.parse_args()
 
@@ -43,8 +49,13 @@ def main():
         # ソルバーを初期化
         solver = LLMSolver()
         
-        # 問題を解く
-        results = solver.process_questions(questions, args.models, file_exp=args.exp)
+        # 問題を解く - supports_vision を渡す
+        results = solver.process_questions(
+            questions, 
+            args.models, 
+            file_exp=args.exp,
+            supports_vision_override_str=args.supports_vision # Pass the string value
+        )
         
         print("処理が完了しました。")
         print("結果は answers/ ディレクトリに保存されています。")
