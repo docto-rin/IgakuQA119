@@ -69,7 +69,7 @@ experiments:
   qwq-32b:
     exp_suffix: "qwq-32b"
     model_name: "ollama-qwq:32b"
-    entry_name: "QWQ-32B"
+    entry_name: "QwQ-32B"
     setup_command: "ollama run qwq:32b"
 
   ca-dsr1-dq32b-jp:

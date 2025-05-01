@@ -194,5 +194,33 @@
         "no_image_correct": 270,
         "no_image_total": 297,
         "no_image_accuracy": 0.9090909090909091
+    },
+    "GPT-4o-mini": {
+        "overall_score": 345.0,
+        "overall_possible_score": 500.0,
+        "overall_score_rate": 0.69,
+        "overall_correct": 279,
+        "overall_total": 400,
+        "overall_accuracy": 0.6975,
+        "no_image_score": 269.0,
+        "no_image_possible_score": 383.0,
+        "no_image_score_rate": 0.7023498694516971,
+        "no_image_correct": 215,
+        "no_image_total": 297,
+        "no_image_accuracy": 0.7239057239057239
+    },
+    "QwQ-32B": {
+        "overall_score": 430.0,
+        "overall_possible_score": 500.0,
+        "overall_score_rate": 0.86,
+        "overall_correct": 334,
+        "overall_total": 400,
+        "overall_accuracy": 0.835,
+        "no_image_score": 344.0,
+        "no_image_possible_score": 383.0,
+        "no_image_score_rate": 0.8981723237597912,
+        "no_image_correct": 260,
+        "no_image_total": 297,
+        "no_image_accuracy": 0.8754208754208754
     }
 }
