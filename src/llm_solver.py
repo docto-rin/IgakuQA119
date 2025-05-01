@@ -355,13 +355,13 @@ class LLMSolver:
 
 
         # 進捗バーを追加
-        for question in tqdm(questions, desc="問題を処理中"):
+        for question in tqdm(questions, desc="ブロックを処理中"):
             question_result = {
                 "question": question,
                 "answers": []
             }
 
-            for model in tqdm(models, desc=f"問題 {question['number']} をモデルで解析中", leave=False):
+            for model in tqdm(models, desc=f"問題 {question['number']} を解答中"):
                 # Pass the boolean override to solve_question
                 answer = self.solve_question(question, model, supports_vision_override=supports_vision_override)
                 question_result["answers"].append(answer)
