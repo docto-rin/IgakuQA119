@@ -3,6 +3,7 @@
 # --- Configuration ---
 CONFIG_FILE="experiments.yaml"
 DEFAULT_ANALYZER="gemini-2.5-pro-exp-03-25" # Default LLM for analysis if not specified
+OLLAMA_PID="" # Variable to store Ollama process ID
 
 # --- Helper Functions ---
 
@@ -41,6 +42,25 @@ get_config_list() {
 }
 
 
+# --- Cleanup Function ---
+cleanup() {
+    echo "Cleaning up..."
+    if [[ -n "$OLLAMA_PID" ]]; then
+        echo "Attempting to stop Ollama process (PID: $OLLAMA_PID)..."
+        # Check if the process exists before trying to kill it
+        if kill -0 "$OLLAMA_PID" 2>/dev/null; then
+            kill "$OLLAMA_PID"
+            echo "Ollama process stopped."
+        else
+            echo "Ollama process (PID: $OLLAMA_PID) not found or already stopped."
+        fi
+        OLLAMA_PID="" # Clear the PID
+    fi
+}
+# Trap signals to ensure cleanup runs on exit or interruption
+trap cleanup EXIT SIGINT SIGTERM
+
+
 # --- Task Functions ---
 
 run_setup() {
@@ -49,8 +69,20 @@ run_setup() {
   local setup_cmd
   setup_cmd=$(get_config_value ".experiments.${exp_key}.setup_command")
   if [[ -n "$setup_cmd" ]]; then
-    echo "Executing: $setup_cmd"
-    eval "$setup_cmd" # Use eval carefully
+    # Check if the command seems to be related to ollama run/serve
+    if [[ "$setup_cmd" == *"ollama run"* || "$setup_cmd" == *"ollama serve"* ]]; then
+      echo "Executing setup command in background: $setup_cmd"
+      eval "$setup_cmd" & # Run command in background
+      OLLAMA_PID=$!     # Store the PID of the background process
+      # Add a short delay to allow the background process (e.g., Ollama server) to initialize
+      echo "Ollama process started in background (PID: $OLLAMA_PID)."
+      echo "Waiting a few seconds for setup command to initialize..."
+      sleep 5 # Adjust sleep duration if necessary
+    else
+      # Execute other setup commands normally (not in background)
+      echo "Executing setup command: $setup_cmd"
+      eval "$setup_cmd"
+    fi
   else
     echo "No setup command defined for $exp_key."
   fi
@@ -360,17 +392,37 @@ fi
 case "$TASK" in
     all)
         run_setup "$TARGET" && \
-        run_experiment "$TARGET" && \
+        run_experiment "$TARGET"
+
+        # --- Stop Ollama Process After Experiment ---
+        # This block is executed only in the 'all' task after run_experiment
+        if [[ -n "$OLLAMA_PID" ]]; then
+            echo "Experiment finished. Attempting to stop Ollama process (PID: $OLLAMA_PID)..."
+            if kill -0 "$OLLAMA_PID" 2>/dev/null; then
+                kill "$OLLAMA_PID"
+                echo "Ollama process stopped."
+            else
+                echo "Ollama process (PID: $OLLAMA_PID) not found or already stopped."
+            fi
+            OLLAMA_PID="" # Clear the PID after attempting to stop
+        fi
+        # --- End Stop Ollama Process ---
+
+        # Continue with the rest of the 'all' task workflow
         run_rerun_and_merge "$TARGET" && \
         run_grade "$TARGET"
         ;;
     setup)
         run_setup "$TARGET"
+        # Note: Ollama process is intentionally left running for 'setup' task
         ;;
     run)
+        # Assuming setup was run previously or Ollama is running independently
         run_experiment "$TARGET"
+        # Note: Ollama process is not stopped here, as setup might be separate
         ;;
     rerun)
+        # Assuming setup was run previously or Ollama is running independently
         run_rerun_and_merge "$TARGET"
         ;;
     grade)
