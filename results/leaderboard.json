@@ -166,5 +166,19 @@
         "no_image_correct": 274,
         "no_image_total": 297,
         "no_image_accuracy": 0.9225589225589226
+    },
+    "Gemini-2.5-Flash": {
+        "overall_score": 478.0,
+        "overall_possible_score": 500.0,
+        "overall_score_rate": 0.956,
+        "overall_correct": 382,
+        "overall_total": 400,
+        "overall_accuracy": 0.955,
+        "no_image_score": 371.0,
+        "no_image_possible_score": 383.0,
+        "no_image_score_rate": 0.9686684073107049,
+        "no_image_correct": 287,
+        "no_image_total": 297,
+        "no_image_accuracy": 0.9663299663299664
     }
 }
