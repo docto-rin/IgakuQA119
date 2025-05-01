@@ -26,7 +26,7 @@ get_config_value() {
     echo "$default_val"
   else
     echo "$value"
-  end
+  fi
 }
 
 # Get a list (array) from the YAML config
@@ -233,7 +233,7 @@ run_grade() {
   merged_exp="${exp_suffix}_merged"
 
   local -a suffixes
-  get_config_list(".common_settings.question_suffixes" suffixes)
+  get_config_list '.common_settings.question_suffixes' suffixes
 
   if [[ -z "$exp_suffix" || -z "$entry_name" ]]; then
     echo "Error: exp_suffix or entry_name not defined for $exp_key" >&2

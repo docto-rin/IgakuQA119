@@ -105,8 +105,12 @@ comparisons:
     model2_key: "ca-dsr1-dq32b-jp-cpt"
     analyzer: "gemini-2.5-pro-exp-03-25"
   gemini_vs_qwen235b:
-    model1_key: "gemini-2.5-pro"
+    model1_key: "gemini-2_5-pro"
     model2_key: "qwen3-235b-a22b"
+    analyzer: "gemini-2.5-pro-exp-03-25"
+  gemini_vs_deepseek:
+    model1_key: "gemini-2_5-pro"
+    model2_key: "deepseek-r1"
     analyzer: "gemini-2.5-pro-exp-03-25"
 
 # Common settings (can be overridden in specific experiments if needed)
