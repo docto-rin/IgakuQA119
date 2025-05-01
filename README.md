@@ -18,8 +18,8 @@ IgakuQA119 is a repository designed to **evaluate the performance of Large Langu
 
 <!-- LEADERBOARD_START -->
 
-| Rank | Entry | Overall Score (Rate) | Overall Acc. | No-Img Score (Rate) | No-Img Acc. |
-|------|------|---------------------|-------------|--------------------|------------|
+| Rank | Entry | Overall Score | Overall Acc. | No-Img Score | No-Img Acc. |
+|------|------|--------------|-------------|-------------|------------|
 | 1 | Gemini-2.5-Pro | 485/500 (97.00%) | 389/400 (97.25%) | 372/383 (97.13%) | 290/297 (97.64%) |
 | 2 | Gemini-2.5-Flash | 478/500 (95.60%) | 382/400 (95.50%) | 371/383 (96.87%) | 287/297 (96.63%) |
 | 3 | Qwen3-235B-A22B | 462/500 (92.40%) | 366/400 (91.50%) | 356/383 (92.95%) | 274/297 (92.26%) |

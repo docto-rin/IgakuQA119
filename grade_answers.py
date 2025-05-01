@@ -623,7 +623,7 @@ def generate_leaderboard_markdown(leaderboard_data):
         else: rate_str = f"{rate:.2%}"
         return f"{value_str}/{total_str} ({rate_str})"
 
-    headers = ["Rank", "Entry", "Overall Score (Rate)", "Overall Acc.", "No-Img Score (Rate)", "No-Img Acc."]
+    headers = ["Rank", "Entry", "Overall Score", "Overall Acc.", "No-Img Score", "No-Img Acc."]
     header_line = "| " + " | ".join(headers) + " |"
     separator_line = "|-" + "-|".join(['-' * len(h) for h in headers]) + "-|"
 
