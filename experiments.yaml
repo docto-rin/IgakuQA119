@@ -21,6 +21,17 @@ experiments:
     model_name: "gemini-2.0-flash-exp"
     entry_name: "Gemini-2.0-Flash"
 
+  gemma-3:
+    exp_suffix: "gemma-3"
+    model_name: "gemma-3"
+    entry_name: "Gemma-3-27B"
+
+  # via PLaMo API
+  plamo-1_0-prime:
+    exp_suffix: "plamo-1_0-prime"
+    model_name: "plamo-1.0-prime"
+    entry_name: "PLaMo-1.0-Prime"
+
   # via OpenRouter
   gpt-4o-mini:
     exp_suffix: "gpt-4o-mini"
@@ -32,6 +43,11 @@ experiments:
     exp_suffix: "deepseek-r1"
     model_name: "openrouter-deepseek/deepseek-r1:free"
     entry_name: "DeepSeek-R1"
+
+  deepseek-v3-0324:
+    exp_suffix: "deepseek-v3-0324"
+    model_name: "openrouter-deepseek/deepseek-chat-v3-0324:free"
+    entry_name: "DeepSeek-V3-0324"
 
   qwen3-235b-a22b:
     exp_suffix: "qwen3-235b-a22b"

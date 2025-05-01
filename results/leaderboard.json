@@ -222,5 +222,19 @@
         "no_image_correct": 260,
         "no_image_total": 297,
         "no_image_accuracy": 0.8754208754208754
+    },
+    "DeepSeek-V3-0324": {
+        "overall_score": 399.0,
+        "overall_possible_score": 500.0,
+        "overall_score_rate": 0.798,
+        "overall_correct": 311,
+        "overall_total": 400,
+        "overall_accuracy": 0.7775,
+        "no_image_score": 312.0,
+        "no_image_possible_score": 383.0,
+        "no_image_score_rate": 0.814621409921671,
+        "no_image_correct": 236,
+        "no_image_total": 297,
+        "no_image_accuracy": 0.7946127946127947
     }
 }
