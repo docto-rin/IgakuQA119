@@ -8,11 +8,11 @@ import anthropic
 from openai import OpenAI
 from datetime import datetime
 from dotenv import load_dotenv
-from .process_llm_output import OutputProcessor
 import textwrap
 from tqdm import tqdm
 import glob
 import base64
+from .process_llm_output import OutputProcessor
 
 load_dotenv()
 
@@ -75,30 +75,8 @@ class LLMSolver:
                 "system_prompt": self.system_prompt,
                 "parameters": {"reasoning_effort": "high"}
             },
-            # ---- Google (Gemma) ----
-            "gemma-3": {
-                "api_key": os.getenv("GEMINI_API_KEY"),
-                "base_url": "https://generativelanguage.googleapis.com/v1beta/",
-                "model_name": "gemma-3-27b-it",
-                "client_type": "openai",
-                "supports_vision": False,
-                "system_role": "user",
-                "system_prompt": self.system_prompt,
-                "parameters": {}
-            },
-            # ---- DeepSeek ----
-            "deepseek": {
-                "api_key": os.getenv("DEEPSEEK_API_KEY"),
-                "base_url": os.getenv("DEEPSEEK_ENDPOINT"),
-                "model_name": "DeepSeek-R1",
-                "client_type": "openai",
-                "supports_vision": False,
-                "system_role": "system",
-                "system_prompt": self.system_prompt,
-                "parameters": {}
-            },
             # ---- Anthropic Claude ----
-            "claude": {
+            "claude-3.5-sonnet": {
                 "api_key": os.getenv("ANTHROPIC_API_KEY"),
                 "model_name": "claude-3-5-sonnet-20241022",
                 "client_type": "anthropic",
@@ -109,6 +87,17 @@ class LLMSolver:
                     "temperature": 0.2,
                     "max_tokens": 1000
                 }
+            },
+            # ---- Google (Gemma) ----
+            "gemma-3": {
+                "api_key": os.getenv("GEMINI_API_KEY"),
+                "base_url": "https://generativelanguage.googleapis.com/v1beta/",
+                "model_name": "gemma-3-27b-it",
+                "client_type": "openai",
+                "supports_vision": False,
+                "system_role": "user",
+                "system_prompt": self.system_prompt,
+                "parameters": {}
             },
             # ---- Preferred Networks PLaMo ----
             "plamo-1.0-prime": {
@@ -132,17 +121,6 @@ class LLMSolver:
                 "system_prompt": self.system_prompt,
                 "parameters": {}
             },
-            # ---- Ollama Flexible ----
-            "ollama-flexible": {
-                "api_key": "ollama",  # dummy
-                "base_url": "http://localhost:11434/v1",
-                "model_name": None,
-                "client_type": "openai",
-                "supports_vision": False,
-                "system_role": "system",
-                "system_prompt": self.system_prompt,
-                "parameters": {}
-            },
             # ---- OpenRouter Flexible ----
             "openrouter-flexible": {
                 "api_key": os.getenv("OPENROUTER_API_KEY"),
@@ -160,6 +138,17 @@ class LLMSolver:
                 "extra_body": {
                     "enable_thinking": True
                 }
+            },
+            # ---- Ollama Flexible ----
+            "ollama-flexible": {
+                "api_key": "ollama",  # dummy
+                "base_url": "http://localhost:11434/v1",
+                "model_name": None,
+                "client_type": "openai",
+                "supports_vision": False,
+                "system_role": "system",
+                "system_prompt": self.system_prompt,
+                "parameters": {}
             }
         }
 
