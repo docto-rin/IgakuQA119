@@ -44,10 +44,9 @@ def main():
         help='スキップされた問題番号がリストされたテキストファイルへのパス (例: results/119_my-exp_skipped.txt)'
     )
     parser.add_argument(
-        '--models',
-        nargs='+',
+        '--model_name',
         required=True,
-        help='使用するLLMモデル (例: gpt-4o gemini-1.5-pro-latest)'
+        help='使用するLLMモデル (例: gpt-4o, gemini-1.5-pro-latest)'
     )
     parser.add_argument(
         '--questions_dir',
@@ -109,16 +108,12 @@ def main():
                 failed_blocks.append(block)
                 continue
 
-            # --- ★★★ 変更点 ★★★ ---
-            # main.py に渡す --exp の値をブロックごとに生成する
-            # 例: exam_number=119, block=A, rerun_exp="gemini-2.0-flash_retry" -> "119A_gemini-2.0-flash_retry"
             exp_for_this_block = f"{args.exam_number}{block}_{args.rerun_exp}"
-            # --- ★★★ 変更点ここまで ★★★ ---
 
             command = args.runner.split()
             command.append(str(main_script_path))
             command.append(str(input_json_path))
-            command.extend(['--models'] + args.models)
+            command.extend(['--model_name', args.model_name])
             command.extend(['--questions'] + questions_in_block)
             # 生成したブロック固有の --exp 値を渡す
             command.extend(['--exp', exp_for_this_block])

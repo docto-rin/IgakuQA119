@@ -9,10 +9,9 @@ def main():
         help="入力JSONファイルのパス (例: questions/119A_json.json)"
     )
     parser.add_argument(
-        "--models",
-        nargs="+",
+        "--model_name",
         required=True,
-        help="使用するモデル (例: gpt-4o, claude, gemini-2.5-pro)"
+        help="使用するモデル名 (例: gpt-4o, claude, gemini-2.5-pro)"
     )
     parser.add_argument(
         "--questions",
@@ -52,7 +51,7 @@ def main():
         # 問題を解く - supports_vision を渡す
         results = solver.process_questions(
             questions, 
-            args.models, 
+            args.model_name, 
             file_exp=args.exp,
             supports_vision_override_str=args.supports_vision # Pass the string value
         )

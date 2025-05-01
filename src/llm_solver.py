@@ -334,11 +334,8 @@ class LLMSolver:
                         "timestamp": datetime.now().isoformat()
                     }
 
-    def process_questions(self, questions: List[Dict], models: Optional[List[str]] = None, file_exp: Optional[str] = None, supports_vision_override_str: Optional[str] = None) -> List[Dict]:
+    def process_questions(self, questions: List[Dict], model_name: str, file_exp: Optional[str] = None, supports_vision_override_str: Optional[str] = None) -> List[Dict]:
         """全ての問題を処理"""
-        if models is None:
-            models = list(self.models.keys())
-
         results = []
         if file_exp is None:
             file_exp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -353,18 +350,16 @@ class LLMSolver:
             else:
                 print(f"Warning: Invalid value for --supports_vision '{supports_vision_override_str}'. Expected 'true' or 'false'. Ignoring override.")
 
-
         # 進捗バーを追加
         for question in tqdm(questions, desc="ブロックを処理中"):
+            print(f"問題 {question['number']} を解答中")
             question_result = {
                 "question": question,
                 "answers": []
             }
 
-            for model in tqdm(models, desc=f"問題 {question['number']} を解答中"):
-                # Pass the boolean override to solve_question
-                answer = self.solve_question(question, model, supports_vision_override=supports_vision_override)
-                question_result["answers"].append(answer)
+            answer = self.solve_question(question, model_name, supports_vision_override=supports_vision_override)
+            question_result["answers"].append(answer)
 
             results.append(question_result)
             

@@ -65,7 +65,7 @@ MODEL_NAME="gemini-2.5-pro-exp-03-25"
 for suffix in A B C D E F; do
   uv run main.py "questions/119${suffix}_json.json" \
     --exp "119${suffix}_${EXP}" \
-    --models "${MODEL_NAME}"
+    --model_name "${MODEL_NAME}"
 done
 ```
 
@@ -82,7 +82,7 @@ MODEL_NAME="openrouter-qwen/qwen3-235b-a22b:free"
 for suffix in A B C D E F; do
   uv run main.py "questions/119${suffix}_json.json" \
     --exp "119${suffix}_${EXP}" \
-    --models "${MODEL_NAME}"
+    --model_name "${MODEL_NAME}"
 done
 ```
 
@@ -108,7 +108,7 @@ MODEL_NAME="hf.co/mmnga/cyberagent-DeepSeek-R1-Distill-Qwen-32B-Japanese-gguf:Q4
 for suffix in A B C D E F; do
   uv run main.py "questions/119${suffix}_json.json" \
     --exp "119${suffix}_${EXP}" \
-    --models "${MODEL_NAME}"
+    --model_name "${MODEL_NAME}"
 done
 ```
 
@@ -178,7 +178,7 @@ The following sequence of commands performs the complete workflow for handling s
 # 1. Re-run Skipped Questions
 uv run rerun_skipped.py \
   --skipped_list "${SKIPPED_LIST}" \
-  --models "${MODEL_NAME}" \
+  --model_name "${MODEL_NAME}" \
   --questions_dir questions \
   --rerun_exp "${RERUN_EXP}"
 

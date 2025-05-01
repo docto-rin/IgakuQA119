@@ -114,7 +114,7 @@ run_experiment() {
   mkdir -p "$answers_dir" # Ensure answers directory exists
 
   # Base command template
-  local cmd_template='uv run main.py "{q_path}" --exp "{exp_name}" --models "{model}"'
+  local cmd_template='uv run main.py "{q_path}" --exp "{exp_name}" --model_name "{model}"'
   # Add supports_vision argument only if it's defined in yaml
   local supports_vision_arg=""
   if [[ -n "$supports_vision" ]]; then
@@ -191,7 +191,7 @@ run_rerun_and_merge() {
         echo "Found skipped list: $skipped_list. Running rerun..."
         local rerun_cmd="uv run rerun_skipped.py \
           --skipped_list \"${skipped_list}\" \
-          --models \"${model_name}\" \
+          --model_name \"${model_name}\" \
           --questions_dir \"${questions_dir}\" \
           --rerun_exp \"${rerun_exp}\""
         echo "Executing: $rerun_cmd"
