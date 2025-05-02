@@ -98,11 +98,11 @@ To use local LLMs:
 
 All experiments, comparisons, and common settings are defined in the `experiments.yaml` file. Before running evaluations, review and potentially modify this file:
 
-*   **`experiments`:** Define each LLM evaluation task. Set the `exp_suffix`, `model_name`, `entry_name` for the leaderboard, and optionally a `setup_command` (e.g., for Ollama) or `needs_rerun: true` if skipped question handling is anticipated.
-*   **`comparisons`:** Define pairs of experiments to compare using the `compare_wrong_answers.py` script.
-*   **`common_settings`:** Define shared parameters like question file suffixes and directory names.
+*   **`experiments`:** Define each LLM evaluation task. Set the `exp_suffix`, `model_name`, `entry_name`.
+*   **`comparisons`:** Define pairs of experiments to compare.
+*   **`common_settings`:** Define shared parameters like dataset paths.
 
-See the comments within `experiments.yaml` for details on each field.
+For more details, see [4. Configuration Details (`experiments.yaml`)](#4-configuration-details-experimentsyaml).
 
 ## 2. Workflow using `run_exp.sh`
 
