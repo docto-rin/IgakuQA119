@@ -30,14 +30,12 @@ class OutputProcessor:
         }
         success = True
 
-        # ---- 入力チェック ----
         if not response or not isinstance(response, str):
             print(f"警告: 無効な応答を受け取りました: {response}")
             return result, False
 
         cleaned_response = response
 
-        # ---- CoT の処理 ----
         if cot is None:
             cot_match = self.cot_pattern.search(response)
             if cot_match:
@@ -47,7 +45,6 @@ class OutputProcessor:
                 print("情報: CoT タグが見つかりませんでした。")
         cleaned_response = self.cot_pattern.sub("", response).strip()
 
-        # ---- answer／confidence／explanation ----
         try:
             lines = cleaned_response.lower().split('\n')
             temp_expl_lines = []
@@ -85,12 +82,10 @@ class OutputProcessor:
             elif found_expl_key:
                 result['explanation'] = ""
 
-            # answer が取れなければ失敗判定
             if not result['answer']:
                 print("警告: answer が見つかりませんでした")
                 success = False
 
-            # explanation キーごと無い場合は cleaned_response を丸ごと入れておく
             if not found_expl_key and result['explanation'] is None:
                 result['explanation'] = cleaned_response
 
@@ -102,17 +97,13 @@ class OutputProcessor:
 
     def save_json_output(self, results: List[Dict], file_exp: str) -> None:
         """結果をJSONファイルとして保存（cotフィールドも含む）"""
-        # ファイルパスの生成（ディレクトリが存在しない場合は作成）
         output_dir = "./answers"
         os.makedirs(output_dir, exist_ok=True)
-        # ファイル名からディレクトリ構造を除去 (例: "A/119A_exp" -> "119A_exp")
         safe_file_exp = os.path.basename(file_exp)
         output_file = os.path.join(output_dir, f"{safe_file_exp}.json")
 
-        # JSON用にデータを整形
         formatted_results = []
         for result in results:
-            # questionキーとその値が存在するかチェック
             if "question" not in result or not isinstance(result["question"], dict):
                 print(f"警告: 'question' キーが無効な結果データをスキップします: {result}")
                 continue
@@ -125,15 +116,13 @@ class OutputProcessor:
                 "answers": []
             }
 
-            # answersキーとその値が存在するかチェック
             if "answers" not in result or not isinstance(result["answers"], list):
                  print(f"警告: 'answers' キーが無効な結果データをスキップします (Question: {formatted_result['question_number']})")
-                 formatted_results.append(formatted_result) # answersがなくてもquestion情報は記録
+                 formatted_results.append(formatted_result)
                  continue
 
 
             for answer in result["answers"]:
-                 # answerが辞書形式かチェック
                 if not isinstance(answer, dict):
                     print(f"警告: 無効な answer 形式です。スキップします: {answer}")
                     continue
@@ -170,5 +159,4 @@ class OutputProcessor:
         if file_exp is None:
             file_exp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-        # JSON形式で1つのファイルに保存
         self.save_json_output(results, file_exp)

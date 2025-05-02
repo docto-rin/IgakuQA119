@@ -33,7 +33,7 @@ def test_model_api(model_key: str):
             api_response = response.content[0].text
         else:
             messages = [
-                {"role": config["system_role"], "content": config["system_prompt"]}, # LLMSolverのシステムプロンプトを使用
+                {"role": config["system_role"], "content": config["system_prompt"]},
                 {"role": "user", "content": test_prompt}
             ]
             response = client.chat.completions.create(

@@ -1,13 +1,11 @@
-# grade_answers.py
 import json
 import pandas as pd
 import argparse
 from pathlib import Path
 import matplotlib.pyplot as plt
 import seaborn as sns
-import glob # ファイル検索用にglobを追加
+import glob
 
-# --- 定数定義 ---
 LEADERBOARD_START_MARKER = "<!-- LEADERBOARD_START -->"
 LEADERBOARD_END_MARKER = "<!-- LEADERBOARD_END -->"
 
@@ -44,7 +42,6 @@ def load_correct_answers(answers_path):
          except Exception as e:
             raise ValueError(f"Pickle正解ファイルの読み込みに失敗しました: {e}")
     else:
-        # 拡張子がない場合やその他の場合はPickleとして試行
         try:
             df = pd.read_pickle(answers_path)
             print(f"情報: 拡張子不明のためPickleとして読み込みました: {answers_path}")
@@ -69,9 +66,9 @@ def grade_answers(model_data, correct_df):
     """
     results = []
     correct_count = 0
-    total_questions = 0 # 正解が存在する問題の数
-    model_name_in_json = None # JSONデータからモデル名を取得
-    skipped_questions = [] # スキップされた問題番号を記録
+    total_questions = 0
+    model_name_in_json = None
+    skipped_questions = []
 
     try:
         correct_answers = dict(zip(correct_df['問題番号'].astype(str), correct_df['解答'].astype(str)))
@@ -117,13 +114,12 @@ def grade_answers(model_data, correct_df):
         required_answer_keys = ['answer', 'model', 'confidence']
         missing_keys = [key for key in required_answer_keys if key not in answer_data]
         if missing_keys:
-             # 'answer' や 'confidence' が欠けている場合にスキップ
              if 'answer' in missing_keys or 'confidence' in missing_keys:
                  print(f"警告: answerデータに必要なキーがありません ({missing_keys})。スキップします: {question_number}")
                  if question_number != 'N/A':
                      skipped_questions.append(question_number)
                  continue
-             else: # modelキーがないなどは警告のみで続行する場合（今回はスキップ）
+             else:
                  print(f"警告: answerデータに必要なキーがありません ({missing_keys})。スキップします: {question_number}")
                  if question_number != 'N/A':
                      skipped_questions.append(question_number)
@@ -202,10 +198,8 @@ def print_individual_report_summary(results_df, accuracy, json_filename):
     if len(results_df) != total_len_graded:
         print(f"(全問題数: {len(results_df)}, うち正解不明: {len(results_df) - total_len_graded})")
 
-    # 信頼度分析 (省略)
     print("-" * 20)
 
-# --- 統合レポートファイル生成 (ファイル名に file_identifier を使用) ---
 def generate_consolidated_files(consolidated_df, output_dir, prefix, file_identifier):
     """統合された結果からレポートファイル（プロット、CSV）を生成する"""
     if consolidated_df.empty:
@@ -214,18 +208,15 @@ def generate_consolidated_files(consolidated_df, output_dir, prefix, file_identi
 
     output_path = Path(output_dir)
     output_path.mkdir(exist_ok=True, parents=True)
-    # ファイル名プレフィックスに file_identifier を使用
-    file_prefix = f"{prefix}{file_identifier}_" # 例: 119_my-exp_
+    file_prefix = f"{prefix}{file_identifier}_"
 
     try:
         print("\n--- 統合レポートファイルの作成 ---")
-        # --- 信頼度分布プロット (統合版) ---
         if 'confidence' in consolidated_df.columns and pd.api.types.is_numeric_dtype(consolidated_df['confidence']):
             plt.figure(figsize=(10, 6))
             plot_data = consolidated_df.dropna(subset=['confidence', 'is_correct'])
             if not plot_data.empty:
                  sns.histplot(data=plot_data, x='confidence', hue='is_correct', bins=20, multiple='stack')
-                 # タイトルには file_identifier を使用 (どちらでも良いが一貫性のため)
                  plt.title(f'Confidence Distribution and Correctness ({file_identifier} - Consolidated)')
                  plt.xlabel('Confidence')
                  plt.ylabel('Count (Graded Questions)')
@@ -238,7 +229,6 @@ def generate_consolidated_files(consolidated_df, output_dir, prefix, file_identi
         else:
             print("情報: 統合結果に'confidence'列がないか数値型でないため、信頼度グラフは生成されません。")
 
-        # --- 間違えた問題のリスト (統合版) ---
         wrong_answers = consolidated_df[consolidated_df['is_correct'] == False]
         if not wrong_answers.empty:
             wrong_csv_path = output_path / f"{file_prefix}wrong_answers.csv"
@@ -247,7 +237,6 @@ def generate_consolidated_files(consolidated_df, output_dir, prefix, file_identi
         else:
              print("情報: 統合結果で間違えた問題はありませんでした (採点対象内で)。")
 
-        # --- 全結果のCSV (統合版) ---
         results_csv_path = output_path / f"{file_prefix}grading_results.csv"
         consolidated_df.to_csv(results_csv_path, index=False, encoding='utf-8-sig')
         print(f"全採点結果CSVを {results_csv_path} に保存しました。")
@@ -255,7 +244,6 @@ def generate_consolidated_files(consolidated_df, output_dir, prefix, file_identi
     except Exception as e:
         print(f"エラー: 統合レポートファイルの保存中にエラーが発生しました: {e}")
 
-# --- 結果統合関数 ---
 def consolidate_results(all_results):
     """複数ブロックの結果を統合し、各種統計情報を計算する"""
     if not all_results:
@@ -312,7 +300,6 @@ def consolidate_results(all_results):
     graded_df['is_general'] = graded_df['block'].isin(general_blocks)
     graded_df['is_required'] = graded_df['block'].isin(required_blocks)
 
-    # --- 点数計算関数 ---
     def required_point(question_number):
         try:
             block = question_number[3].upper() if len(question_number) > 3 else ''
@@ -359,7 +346,6 @@ def consolidate_results(all_results):
     print(f"  画像あり問題: {graded_df['has_image'].sum()} 件")
     print(f"  画像なし問題: {len(no_image_df)} 件")
 
-    # --- 集計関数 ---
     def calculate_category_stats(df):
         if df.empty:
             return {'correct': 0, 'total': 0, 'accuracy': 0.0, 'score': 0.0, 'possible_score': 0.0, 'score_rate': 0.0}
@@ -411,7 +397,6 @@ def consolidate_results(all_results):
     }
     return stats
 
-# --- 統合レポート生成 (タイトルとファイル名識別子を区別) ---
 def generate_consolidated_report(stats, entry_name_for_title, file_identifier, output_dir=None, prefix=""):
     """
     統合された結果のレポートを生成し、サマリテキストファイルとして保存する。
@@ -428,9 +413,8 @@ def generate_consolidated_report(stats, entry_name_for_title, file_identifier, o
          if possible == 0: return f"{score_str} / {possible_str} (0点満点)"
          return f"{score_str} / {possible_str}"
 
-    # レポートタイトルには entry_name_for_title を使用
     summary_lines.append(f"===== モデルエントリー: {entry_name_for_title} の結果 =====")
-    summary_lines.append(f"(ファイル識別子: {file_identifier})") # 参考情報としてファイル識別子も追記
+    summary_lines.append(f"(ファイル識別子: {file_identifier})")
     summary_lines.append("")
 
     total_data = stats.get('total', {})
@@ -482,13 +466,12 @@ def generate_consolidated_report(stats, entry_name_for_title, file_identifier, o
     add_block_results("--- 画像なしのブロック別結果 ---", no_image_block_acc, no_image_block_sr)
 
     summary = "\n".join(summary_lines)
-    print("\n--- 統合サマリ ---") # コンソール出力の見出しを修正
+    print("\n--- 統合サマリ ---")
     print(summary)
 
     if output_dir:
         output_path = Path(output_dir)
         output_path.mkdir(exist_ok=True, parents=True)
-        # ファイル名には file_identifier を使用
         summary_file = output_path / f"{prefix}{file_identifier}_summary.txt"
         try:
             with open(summary_file, "w", encoding="utf-8") as f:
@@ -498,7 +481,6 @@ def generate_consolidated_report(stats, entry_name_for_title, file_identifier, o
             print(f"エラー: サマリファイル '{summary_file}' の書き込み中にエラーが発生しました: {e}")
 
 
-# --- Leaderboard 機能 ---
 def update_leaderboard_data(data_file, entry_name, stats):
     """
     LeaderboardデータをJSONファイルで更新または新規作成する。
@@ -689,8 +671,6 @@ def update_readme(readme_path_str, markdown_table):
         print(f"エラー: READMEファイル '{readme_path}' の更新中にエラーが発生しました: {e}")
 
 
-# --- main関数 (ファイル名生成部分を修正) ---
-
 def main():
     parser = argparse.ArgumentParser(
         description='モデルの解答を採点し、結果をLeaderboardに反映するスクリプト',
@@ -718,9 +698,8 @@ def main():
     processed_blocks = set()
     base_numbers_from_files = set()
     first_valid_json_path = None
-    first_file_identifier = None # ファイル名から推測する識別子 (--exp 相当)
+    first_file_identifier = None
 
-    # JSONパスの検証と情報抽出
     for path_str in args.json_paths:
         path = Path(path_str)
         if not path.exists():
@@ -731,14 +710,13 @@ def main():
             continue
 
         valid_json_paths.append(str(path))
-        filename = path.stem # 拡張子なしのファイル名 (例: 119A_my-exp)
-        parts = filename.split('_', 1) # 最初の '_' で分割
+        filename = path.stem
+        parts = filename.split('_', 1)
 
         if first_valid_json_path is None:
             first_valid_json_path = path
-            # 最初の有効なファイルからファイル識別子を推測
             if len(parts) > 1:
-                first_file_identifier = parts[1] # 例: my-exp
+                first_file_identifier = parts[1]
 
         base_number_with_block = parts[0] if parts else ""
 
@@ -766,7 +744,6 @@ def main():
     if not valid_json_paths:
         parser.error("処理可能なJSONファイルが1つも見つかりませんでした。")
 
-    # ファイル名から取得した識別子、なければデフォルト値
     file_identifier = first_file_identifier or "UnknownExp"
     print(f"情報: レポートファイル名に使用する識別子: '{file_identifier}'")
 
@@ -778,7 +755,7 @@ def main():
         print(f"警告: ファイル名から試験番号を特定できませんでした。レポートプレフィックスは 'UnknownNumber_' になります。")
 
     report_base_number = list(base_numbers_from_files)[0] if base_numbers_from_files else "UnknownNumber"
-    consolidated_prefix = f"{report_base_number}_" # 例: 119_
+    consolidated_prefix = f"{report_base_number}_"
 
 
     try:
@@ -830,12 +807,11 @@ def main():
              continue
 
 
-    # --- Leaderboard用エントリー名の決定 ---
-    effective_entry_name = "UnknownEntry" # デフォルト値
+    effective_entry_name = "UnknownEntry"
     if args.entry_name:
         effective_entry_name = args.entry_name
         print(f"\n情報: コマンドライン引数からLeaderboard/レポートタイトル用エントリー名 '{effective_entry_name}' を使用します。")
-    elif first_file_identifier: # ファイル識別子をエントリー名の候補とする (以前の実装に近い挙動)
+    elif first_file_identifier:
         effective_entry_name = file_identifier
         print(f"\n情報: ファイル名から推測した識別子 '{effective_entry_name}' をLeaderboard/レポートタイトル用エントリー名として使用します。")
     elif first_model_name_from_json:
@@ -845,7 +821,6 @@ def main():
         print("\n警告: Leaderboard/レポートタイトルで使用するエントリー名を特定できませんでした。'UnknownEntry' として扱います。")
 
 
-    # --- スキップされた問題番号のファイル出力 ---
     unique_skipped_questions = sorted(list(set(all_skipped_questions)))
 
     if unique_skipped_questions:
@@ -856,7 +831,6 @@ def main():
             skipped_file_path = Path(args.skipped_output_file)
             skipped_file_path.parent.mkdir(parents=True, exist_ok=True)
         else:
-            # ファイル名には file_identifier を使用
             skipped_file_name = f"{consolidated_prefix}{file_identifier}_skipped.txt"
             skipped_file_path = output_path / skipped_file_name
 
@@ -867,7 +841,6 @@ def main():
                     f.write(f"{q_num}\n")
             print(f"スキップされた問題番号を {skipped_file_path} に保存しました。")
             print("これらの問題を再実行するには、以下のコマンドを使用します（パスやモデル名、exp名を適宜変更してください）:")
-            # 再実行コマンド例では file_identifier を --exp に使うことを示唆
             print(f"  uv run main.py <INPUT_JSON_PATH> --models <YOUR_MODEL_NAME> --questions $(cat '{skipped_file_path}') --exp {file_identifier}_retry")
             print(f"  注意: <INPUT_JSON_PATH> には、スキップされた問題が含まれるJSONファイル（例: questions/{report_base_number}A_json.json など）を指定してください。")
             print(f"        必要に応じて、問題をブロックごとに分けて再実行してください。")
@@ -879,7 +852,6 @@ def main():
              print("\nスキップされた問題はありませんでした。")
 
 
-    # --- 統合処理とレポート生成 ---
     if not all_results_dfs:
         print("\n有効な採点結果がなかったため、統合レポートとLeaderboard更新をスキップします。")
         return
@@ -892,7 +864,6 @@ def main():
          print(f"エラー: 結果の統合処理中にエラーが発生しました: {e}。統合レポートとLeaderboard更新をスキップします。")
          return
 
-    # 統合サマリ: タイトルに effective_entry_name、ファイル名に file_identifier を使用
     generate_consolidated_report(
         stats=consolidated_stats,
         entry_name_for_title=effective_entry_name,
@@ -901,7 +872,6 @@ def main():
         prefix=consolidated_prefix
     )
 
-    # 統合ファイル（プロット、CSV）: ファイル名に file_identifier を使用
     if not consolidated_df.empty:
         generate_consolidated_files(
             consolidated_df=consolidated_df,
@@ -913,8 +883,6 @@ def main():
         print("情報: 統合DataFrameが空のため、統合ファイル (PNG, CSV) の生成をスキップします。")
 
 
-    # --- Leaderboard 更新処理 ---
-    # Leaderboardのエントリー名には effective_entry_name を使用
     print("\n--- Leaderboard 更新 ---")
     if effective_entry_name == "UnknownEntry":
         print("警告: Leaderboard用エントリー名を特定できなかったため、Leaderboard は更新されません。")

@@ -25,7 +25,7 @@ def main():
     )
     parser.add_argument(
         "--supports_vision",
-        type=str, # Accept as string initially
+        type=str,
         default=None,
         help="Override vision support setting (true/false). If not provided, uses default from llm_solver."
     )
@@ -33,11 +33,9 @@ def main():
     args = parser.parse_args()
 
     try:
-        # 問題データの読み込み
         with open(args.input_json, "r", encoding="utf-8") as f:
             questions = json.load(f)
 
-        # 特定の問題番号が指定された場合、その問題のみをフィルタリング
         if args.questions:
             filtered_questions = [q for q in questions if q["number"] in args.questions]
             if not filtered_questions:
@@ -45,15 +43,13 @@ def main():
                 return
             questions = filtered_questions
 
-        # ソルバーを初期化
         solver = LLMSolver()
         
-        # 問題を解く - supports_vision を渡す
         results = solver.process_questions(
             questions, 
             args.model_name, 
             file_exp=args.exp,
-            supports_vision_override_str=args.supports_vision # Pass the string value
+            supports_vision_override_str=args.supports_vision
         )
         
         print("処理が完了しました。")

@@ -45,9 +45,8 @@ class LLMSolver:
             """)
         else:
             raise ValueError("無効なsystem_prompt_typeが指定されました。")
-        
+
         self.models: Dict[str, Dict[str, Any]] = {
-            # ---- OpenAI ----
             "o1": {
                 "api_key": os.getenv("OPENAI_API_KEY"),
                 "model_name": "o1",
@@ -75,7 +74,6 @@ class LLMSolver:
                 "system_prompt": self.system_prompt,
                 "parameters": {"reasoning_effort": "high"}
             },
-            # ---- Anthropic Claude ----
             "claude-3.5-sonnet": {
                 "api_key": os.getenv("ANTHROPIC_API_KEY"),
                 "model_name": "claude-3-5-sonnet-20241022",
@@ -88,7 +86,6 @@ class LLMSolver:
                     "max_tokens": 1000
                 }
             },
-            # ---- Google (Gemma) ----
             "gemma-3": {
                 "api_key": os.getenv("GEMINI_API_KEY"),
                 "base_url": "https://generativelanguage.googleapis.com/v1beta/",
@@ -99,7 +96,6 @@ class LLMSolver:
                 "system_prompt": self.system_prompt,
                 "parameters": {}
             },
-            # ---- Preferred Networks PLaMo ----
             "plamo-1.0-prime": {
                 "api_key": os.getenv("PLAMO_API_KEY"),
                 "base_url": "https://platform.preferredai.jp/api/completion/v1",
@@ -110,7 +106,6 @@ class LLMSolver:
                 "system_prompt": self.system_prompt,
                 "parameters": {}
             },
-            # ---- Gemini Flexible ----
             "gemini-flexible": {
                 "api_key": os.getenv("GEMINI_API_KEY"),
                 "base_url": "https://generativelanguage.googleapis.com/v1beta/",
@@ -121,7 +116,6 @@ class LLMSolver:
                 "system_prompt": self.system_prompt,
                 "parameters": {}
             },
-            # ---- OpenRouter Flexible ----
             "openrouter-flexible": {
                 "api_key": os.getenv("OPENROUTER_API_KEY"),
                 "base_url": "https://openrouter.ai/api/v1",
@@ -139,9 +133,8 @@ class LLMSolver:
                     "enable_thinking": True
                 }
             },
-            # ---- Ollama Flexible ----
             "ollama-flexible": {
-                "api_key": "ollama",  # dummy
+                "api_key": "ollama",
                 "base_url": "http://localhost:11434/v1",
                 "model_name": None,
                 "client_type": "openai",
@@ -155,12 +148,9 @@ class LLMSolver:
     def get_config_and_client(self, model_key: str):
         """モデルキーから設定とクライアントを返す。未定義キーは柔軟に解決"""
 
-        # get config
         if model_key in self.models:
-            # static config
             config = self.models[model_key]
         else:
-            # dynamic config
             if model_key.startswith("gemini-"):
                 config = copy.deepcopy(self.models["gemini-flexible"])
                 config["model_name"] = model_key
@@ -172,17 +162,14 @@ class LLMSolver:
                 config["model_name"] = model_key.split("ollama-", 1)[1]
             elif model_key.startswith("openrouter-"):
                 config = copy.deepcopy(self.models["openrouter-flexible"])
-                config["model_name"] = model_key.split("openrouter-", 1)[1] 
+                config["model_name"] = model_key.split("openrouter-", 1)[1]
             else:
                 raise ValueError(f"未定義のモデルキーです: {model_key}")
 
-        # get client
         if config["client_type"] == "anthropic":
-            # Anthropic client
             client = anthropic.Anthropic(api_key=config["api_key"])
             return config, client
         else:
-            # OpenAI client
             client_args = {
                 "api_key": config["api_key"]
             }
@@ -198,12 +185,10 @@ class LLMSolver:
         """1つの問題を解く"""
         config, client = self.get_config_and_client(model_key)
 
-        # Override supports_vision if provided
         if supports_vision_override is not None:
             print(f"Overriding supports_vision for {model_key} to {supports_vision_override}")
             config["supports_vision"] = supports_vision_override
 
-        # 問題文を構築
         prompt = f"""問題：{question['question']}
 
 選択肢：
@@ -224,7 +209,7 @@ class LLMSolver:
                         **config["parameters"]
                     )
                     raw_response = response.content[0].text
-                    cot = None # Anthropic は現時点では CoT を直接返さない
+                    cot = None
                 else:
                     messages = [
                         {"role": config["system_role"], "content": config["system_prompt"]},
@@ -235,8 +220,6 @@ class LLMSolver:
                         image_paths = self.get_question_images(question["number"])
                         if not image_paths:
                              print(f"Warning: Question {question['number']} has 'has_image=True' but no image files found.")
-                             # 画像がない場合は通常のテキストプロンプトに戻すか、エラーにするか選択
-                             # ここではテキストのみで続行
                              messages = [
                                 {"role": config["system_role"], "content": config["system_prompt"]},
                                 {"role": "user", "content": prompt}
@@ -254,10 +237,9 @@ class LLMSolver:
                                     })
                                 except FileNotFoundError:
                                     print(f"Warning: Image file not found: {image_path}")
-                                    continue # Skip this image if not found
+                                    continue
 
-                            # 画像が一つも見つからなかった場合への対応
-                            if len(content) == 1: # Only text part exists
+                            if len(content) == 1:
                                 print(f"Warning: No valid images found for question {question['number']} despite supports_vision=True and has_image=True.")
                                 messages = [
                                     {"role": config["system_role"], "content": config["system_prompt"]},
@@ -268,7 +250,7 @@ class LLMSolver:
                                     {"role": config["system_role"], "content": config["system_prompt"]},
                                     {"role": "user", "content": content}
                                 ]
-                    else: # Vision not supported or no image flag
+                    else:
                          messages = [
                             {"role": config["system_role"], "content": config["system_prompt"]},
                             {"role": "user", "content": prompt}
@@ -284,16 +266,13 @@ class LLMSolver:
                     raw_response = response.choices[0].message.content
                     cot = response.choices[0].message.reasoning if hasattr(response.choices[0].message, 'reasoning') else None
 
-                # レスポンスを受け取った直後にログ出力
                 print(f"モデル {model_key} からの応答:")
                 if cot:
                     print(f"CoT: {cot}")
                 print(f"生の応答: {raw_response}")
-                
-                # 応答を構造化データに変換
+
                 formatted_response, success = self.output_processor.format_model_response(raw_response, cot)
 
-                # 解析が失敗した場合にポストプロセスを実施
                 num_post_attempts = 0
                 max_post_attempts = 3
                 while not success and num_post_attempts < max_post_attempts:
@@ -305,7 +284,7 @@ class LLMSolver:
                     if success:
                         print("ポストプロセス成功")
                         print(f"ポストプロセス後の応答: {fixed_response}")
-                        raw_response = fixed_response # ポストプロセス後の応答を raw_response とする
+                        raw_response = fixed_response
                     else:
                         raise Exception("ポストプロセスに失敗しました")
 
@@ -321,7 +300,7 @@ class LLMSolver:
 
             except Exception as e:
                 if attempt < max_retries - 1:
-                    wait_time = base_wait_time * (2 ** attempt) + random.uniform(0, 1) # 指数バックオフ + ジッター
+                    wait_time = base_wait_time * (2 ** attempt) + random.uniform(0, 1)
                     print(f"モデル {model_key} でエラー発生: {e}. {wait_time:.2f}秒待機してリトライします ({attempt + 1}/{max_retries})")
                     time.sleep(wait_time)
                 else:
@@ -340,7 +319,6 @@ class LLMSolver:
         if file_exp is None:
             file_exp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-        # Convert string override to boolean
         supports_vision_override: Optional[bool] = None
         if supports_vision_override_str is not None:
             if supports_vision_override_str.lower() == 'true':
@@ -350,7 +328,6 @@ class LLMSolver:
             else:
                 print(f"Warning: Invalid value for --supports_vision '{supports_vision_override_str}'. Expected 'true' or 'false'. Ignoring override.")
 
-        # 進捗バーを追加
         for question in tqdm(questions, desc="ブロックを処理中"):
             print(f"問題 {question['number']} を解答中")
             question_result = {
@@ -362,15 +339,13 @@ class LLMSolver:
             question_result["answers"].append(answer)
 
             results.append(question_result)
-            
-            # 問題ごとに同じファイルに追記形式で保存
+
             try:
                 self.output_processor.process_outputs(results, file_exp)
-                # print(f"問題 {question['number']} の結果を保存しました") # tqdmがあるのでコメントアウト推奨
             except Exception as e:
                 print(f"結果の保存中にエラーが発生: {str(e)}")
 
-        return results 
+        return results
 
     def get_question_images(self, question_number):
         """問題番号に関連する画像を取得"""
@@ -409,7 +384,7 @@ class LLMSolver:
     以下の「整形前の応答」を、「整形方法の指示」にて指定された形式に厳密に整形してください。
     【整形前の応答】
     {raw_response}
-    
+
     【整形方法の指示】
     {system_prompt}
     """
@@ -427,20 +402,20 @@ class LLMSolver:
                 if config["client_type"] == "anthropic":
                      response = client.messages.create(
                         model=config["model_name"],
-                        messages=[{"role": "user", "content": retry_prompt}], # ポストプロセスではシステムプロンプトをメッセージに含める
-                        system=config["system_prompt"], # system 引数はそのまま
+                        messages=[{"role": "user", "content": retry_prompt}],
+                        system=config["system_prompt"],
                         **config["parameters"]
                     )
                      fixed_response = response.content[0].text
-                else: # OpenAI 互換クライアント
+                else:
                     response = client.chat.completions.create(
                         model=config["model_name"],
                         messages=messages,
-                        extra_body=config.get("extra_body", {}), # extra_body も考慮
+                        extra_body=config.get("extra_body", {}),
                         **config["parameters"]
                     )
                     fixed_response = response.choices[0].message.content
-                
+
                 return fixed_response
 
             except Exception as e:

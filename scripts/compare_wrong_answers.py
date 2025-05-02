@@ -6,48 +6,40 @@ import glob
 import sys
 import textwrap
 from collections import Counter
-import difflib # オプション
-from typing import Optional, Dict, Any # 型ヒント追加
-import os # LLMSolver用
-from dotenv import load_dotenv # LLMSolver用
-import re # ソート用に追加
+import difflib
+from typing import Optional, Dict, Any
+import os
+from dotenv import load_dotenv
+import re
 
-# .envファイルを読み込む (LLM APIキー用)
 load_dotenv()
 
-# srcディレクトリをパスに追加 (LLMSolverをインポートするため)
-# スクリプトの場所に応じて調整が必要な場合があります
 script_dir = Path(__file__).parent
-# project_root の設定をより堅牢に
-# スクリプトがどこにあってもプロジェクトルート (通常 .env ファイルがある場所や src がある場所の親) を見つける試み
 project_root = script_dir
 while not (project_root / '.env').exists() and not (project_root / 'src').exists() and project_root.parent != project_root:
     project_root = project_root.parent
 if not (project_root / 'src').exists():
     print("警告: srcディレクトリがプロジェクトルート候補で見つかりません。", file=sys.stderr)
-    # Fallback to assuming script is in scripts/
     project_root = script_dir.parent
     if (project_root / 'src').exists():
          sys.path.append(str(project_root))
     else:
          print("エラー: srcディレクトリが見つかりません。PYTHONPATHを確認してください。", file=sys.stderr)
-         # sys.exit(1) # スクリプトが src を使わない場合もあるためコメントアウト
 else:
     sys.path.append(str(project_root))
 
 
 try:
-    from src.llm_solver import LLMSolver # LLMSolverをインポート
+    from src.llm_solver import LLMSolver
 except ImportError:
     print("情報: src.llm_solver が見つかりません。LLM分析機能は利用できません。", file=sys.stderr)
-    LLMSolver = None # LLMSolverがない場合はNoneにしておく
+    LLMSolver = None
 
 
 # --- ヘルパー関数 ---
 
 def load_wrong_answers_csv(exp: str, results_dir: Path = Path("results")) -> set:
     """指定された実験の誤答CSVファイルを読み込み、誤答問題番号のセットを返す"""
-    # (変更なし)
     csv_path = results_dir / f"119_{exp}_wrong_answers.csv"
     if not csv_path.is_file():
         print(f"警告: 誤答ファイルが見つかりません: {csv_path}。空のセットを返します。", file=sys.stderr)
@@ -57,7 +49,6 @@ def load_wrong_answers_csv(exp: str, results_dir: Path = Path("results")) -> set
         if 'question_number' not in df.columns:
             print(f"エラー: {csv_path} に 'question_number' カラムが見つかりません。", file=sys.stderr)
             return set()
-        # question_number が NaN でない行のみを対象にする
         valid_q_nums = df.dropna(subset=['question_number'])['question_number'].astype(str)
         return set(valid_q_nums)
     except pd.errors.EmptyDataError:
@@ -67,11 +58,10 @@ def load_wrong_answers_csv(exp: str, results_dir: Path = Path("results")) -> set
         print(f"エラー: 誤答ファイル {csv_path} の読み込み中にエラーが発生しました: {e}", file=sys.stderr)
         return set()
 
-# ▼▼▼ `load_answers_json` 関数の修正 ▼▼▼ (軽微な修正)
 def load_answers_json(exp: str, answers_dir: Path = Path("answers")) -> dict:
     """指定された実験の全ブロックの回答JSONを読み込み、問題番号をキーとする辞書を返す (cotも含む)"""
     all_answers = {}
-    json_files = list(answers_dir.glob(f"119?_{exp}.json")) # pathlibでglob
+    json_files = list(answers_dir.glob(f"119?_{exp}.json"))
 
     if not json_files:
          print(f"警告: {exp} に対応する回答JSONファイルが {answers_dir} に見つかりません。", file=sys.stderr)
@@ -95,14 +85,13 @@ def load_answers_json(exp: str, answers_dir: Path = Path("answers")) -> dict:
                          print(f"警告: {json_file} 内に問題番号のないデータがあります。スキップします。", file=sys.stderr)
                          continue
 
-                    q_num_str = str(q_num) # 必ず文字列として扱う
+                    q_num_str = str(q_num)
 
                     answer_data = {}
-                    # ★★★ cot を抽出するロジック ★★★ (修正なし)
-                    cot_value = None # デフォルトはNone
+                    cot_value = None
                     if q_result.get("answers") and isinstance(q_result["answers"], list) and len(q_result["answers"]) > 0:
                         ans_data = q_result["answers"][0]
-                        if not isinstance(ans_data, dict): # ans_dataが辞書でない場合スキップ
+                        if not isinstance(ans_data, dict):
                             print(f"警告: 問題 {q_num_str} の answers[0] が辞書形式ではありません。スキップします。 data: {ans_data}", file=sys.stderr)
                             continue
 
@@ -110,13 +99,13 @@ def load_answers_json(exp: str, answers_dir: Path = Path("answers")) -> dict:
                              answer_data = {
                                  "answer": f"ERROR: {ans_data['error']}",
                                  "explanation": "",
-                                 "cot": None, # エラー時はcotもNone
+                                 "cot": None,
                              }
                         else:
                             answer_data = {
                                 "answer": ans_data.get("answer", "N/A"),
                                 "explanation": ans_data.get("explanation", "N/A"),
-                                "cot": ans_data.get("cot"), # cotを取得 (なければNone)
+                                "cot": ans_data.get("cot"),
                             }
                     else:
                          answer_data = {
@@ -125,9 +114,8 @@ def load_answers_json(exp: str, answers_dir: Path = Path("answers")) -> dict:
                              "cot": None,
                          }
 
-                    # 辞書に情報を追加
                     full_q_data = {
-                        **answer_data, # answer, explanation, cot を展開
+                        **answer_data,
                         "question_text": q_text,
                         "choices": choices,
                         "has_image": has_image,
@@ -148,7 +136,6 @@ def load_answers_json(exp: str, answers_dir: Path = Path("answers")) -> dict:
 
 def load_correct_answers(filepath: Path = Path("results/correct_answers.csv")) -> dict:
     """正解データを読み込み、問題番号をキーとする辞書を返す"""
-    # (変更なし)
     if not filepath.is_file():
         print(f"警告: 正解ファイルが見つかりません: {filepath}", file=sys.stderr)
         return {}
@@ -157,7 +144,6 @@ def load_correct_answers(filepath: Path = Path("results/correct_answers.csv")) -
         if '問題番号' not in df.columns or '解答' not in df.columns:
             print(f"エラー: {filepath} に '問題番号' または '解答' カラムが見つかりません。", file=sys.stderr)
             return {}
-        # 問題番号を文字列としてインデックスに設定
         df['問題番号'] = df['問題番号'].astype(str)
         return df.set_index('問題番号')['解答'].to_dict()
     except Exception as e:
@@ -167,33 +153,29 @@ def load_correct_answers(filepath: Path = Path("results/correct_answers.csv")) -
 
 # --- 分析・レポート生成関数 ---
 
-# ▼▼▼ `analyze_single_choice_errors` 関数の修正 ▼▼▼
 def analyze_single_choice_errors(
     df: pd.DataFrame,
-    exp1: str, # 内部カラム名用
-    exp2: str, # 内部カラム名用
-    model1_name: str, # 表示用
-    model2_name: str  # 表示用
+    exp1: str,
+    exp2: str,
+    model1_name: str,
+    model2_name: str
 ) -> Counter:
     """両モデルが誤答した単数選択問題の誤答パターンを集計する"""
     error_patterns = Counter()
-    # DataFrameの列アクセスは元のexp1, exp2を使用
     both_wrong_single = df[
         (df['comparison_type'] == 'Both Wrong') &
-        (df['correct_answer'].astype(str).str.match(r'^[a-z]$', na=False)) & # Correct answer is single letter
+        (df['correct_answer'].astype(str).str.match(r'^[a-z]$', na=False)) &
         (df[f'{exp1}_answer'].notna()) &
         (df[f'{exp2}_answer'].notna()) &
-        (df[f'{exp1}_answer'].astype(str).str.match(r'^[a-z]+$', na=False)) & # Model 1 answer is letter(s)
-        (df[f'{exp2}_answer'].astype(str).str.match(r'^[a-z]+$', na=False)) # Model 2 answer is letter(s)
+        (df[f'{exp1}_answer'].astype(str).str.match(r'^[a-z]+$', na=False)) &
+        (df[f'{exp2}_answer'].astype(str).str.match(r'^[a-z]+$', na=False))
     ].copy()
 
     if not both_wrong_single.empty:
-        # Make sure answers are strings before creating pattern
         both_wrong_single[f'{exp1}_answer'] = both_wrong_single[f'{exp1}_answer'].astype(str)
         both_wrong_single[f'{exp2}_answer'] = both_wrong_single[f'{exp2}_answer'].astype(str)
-        both_wrong_single['correct_answer'] = both_wrong_single['correct_answer'].astype(str) # Ensure correct answer is also string
+        both_wrong_single['correct_answer'] = both_wrong_single['correct_answer'].astype(str)
 
-        # エラーパターン文字列の生成時に表示名 (model1_name, model2_name) を使用
         both_wrong_single['error_pattern'] = both_wrong_single.apply(
             lambda row: f"Correct:{row['correct_answer']} | {model1_name}:{row[f'{exp1}_answer']} | {model2_name}:{row[f'{exp2}_answer']}",
             axis=1
@@ -203,90 +185,74 @@ def analyze_single_choice_errors(
     return error_patterns
 
 
-# ▼▼▼ `generate_markdown_report` 関数の修正 ▼▼▼
 def generate_markdown_report(
-    df_filtered: pd.DataFrame, # 特定の比較タイプでフィルタリングされたDF
-    exp1: str, # 内部カラム名用
-    exp2: str, # 内部カラム名用
-    model1_name: str, # 表示用
-    model2_name: str, # 表示用
-    output_md_path: Path, # 出力ファイルパス
-    comparison_type_title: str, # レポートタイトル用の比較タイプ名
-    error_analysis: Optional[Counter] = None # Both Wrongの場合のみ渡す
+    df_filtered: pd.DataFrame,
+    exp1: str,
+    exp2: str,
+    model1_name: str,
+    model2_name: str,
+    output_md_path: Path,
+    comparison_type_title: str,
+    error_analysis: Optional[Counter] = None
 ):
     """特定の比較タイプのデータからMarkdownレポートを生成する (cot表示、表示名対応)"""
     report_lines = []
 
-    # レポートタイトルに表示名を使用
     report_lines.append(f"# 誤答比較レポート ({comparison_type_title}): {model1_name} vs {model2_name}")
     report_lines.append(f"生成日時: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}")
     report_lines.append("")
 
-    # --- サマリー ---
     report_lines.append("## 1. サマリー")
     report_lines.append("")
     report_lines.append(f"- **対象比較タイプ:** {comparison_type_title}")
     report_lines.append(f"- **該当問題数:** {len(df_filtered)}")
     report_lines.append("")
 
-    # --- 誤答パターン分析 (Both Wrongの場合のみ) ---
     if comparison_type_title == 'Both Wrong' and error_analysis:
-        # ここの見出しはモデル名を含まないため修正不要
         report_lines.append("### 1.1 両モデル共通誤答のパターン (単数選択問題)")
         if error_analysis:
             report_lines.append("```")
-            # 出現回数が多い順に表示
             for pattern, count in sorted(error_analysis.items(), key=lambda item: item[1], reverse=True):
-                report_lines.append(f"{pattern}: {count}件") # patternには既に表示名が含まれているはず
+                report_lines.append(f"{pattern}: {count}件")
             report_lines.append("```")
         else:
             report_lines.append("該当する共通誤答パターンは見つかりませんでした。")
         report_lines.append("")
 
-    # --- 問題別詳細 ---
     report_lines.append(f"## 2. 問題別 詳細 ({comparison_type_title})")
     report_lines.append("")
 
     if df_filtered.empty:
         report_lines.append("該当する問題はありませんでした。")
     else:
-        # question_number でソート (修正なし)
         try:
              def qnum_to_sortkey(qnum_str):
-                 # qnum_strがNaNでないことを確認
                  if pd.isna(qnum_str):
                       return float('inf')
-                 qnum = str(qnum_str) # 文字列に変換
+                 qnum = str(qnum_str)
                  match = re.match(r'(\d+)([A-I])(\d+)', qnum)
                  if match:
                      block_ord = ord(match.group(2)) - ord('A')
                      num_part1 = int(match.group(1))
                      num_part2 = int(match.group(3))
-                     # 桁数を考慮したソートキー (例: 119*100000 + A(0)*1000 + 1 = 11900001)
                      return num_part1 * 100000 + block_ord * 1000 + num_part2
                  else:
-                      # 数字のみなどの場合も考慮（エラーにならないように）
                       try:
-                           # 数字部分だけを取り出す試み
                            num_only = int(re.sub(r'\D', '', qnum))
                            return num_only
                       except ValueError:
-                           # それ以外の形式は最後に (辞書順ソートキーとして元の文字列を使う)
                            return qnum
 
-             # NaNが含まれている可能性があるため、dropna()するか、fillna()で対処
              df_filtered = df_filtered.dropna(subset=['question_number'])
              df_filtered['sort_key'] = df_filtered['question_number'].apply(qnum_to_sortkey)
              df_sorted = df_filtered.sort_values('sort_key').drop(columns=['sort_key'])
         except Exception as e:
              print(f"警告: 問題番号のソート中にエラーが発生しました。文字列としてソートします。エラー: {e}")
-             # 文字列としてソートする前に NaN を除去
              df_sorted = df_filtered.dropna(subset=['question_number']).sort_values("question_number")
 
 
         wrapper = textwrap.TextWrapper(width=80, replace_whitespace=False, drop_whitespace=False)
 
-        # DataFrameからのデータアクセスは元のexp1, exp2カラム名を使用
         for _, row in df_sorted.iterrows():
             q_num = row['question_number']
             correct = row['correct_answer']
@@ -327,7 +293,6 @@ def generate_markdown_report(
                 report_lines.append("- **選択肢:** (形式不正または取得失敗)")
                 report_lines.append(f"  ```\n{choices}\n```")
 
-            # 各モデルのセクション見出しに表示名 (model1_name, model2_name) を使用
             report_lines.append(f"- **{model1_name} の回答:** `{ans1}`")
             if exp1_expl:
                 report_lines.append(f"  - **説明 ({model1_name}):**")
@@ -337,14 +302,14 @@ def generate_markdown_report(
 
             if exp1_cot:
                 report_lines.append(f"  - **思考プロセス (CoT) ({model1_name}):**")
-                report_lines.append("    <details>") # インデント レベル 1 (半角4スペース)
-                report_lines.append("      <summary>クリックして展開</summary>") # インデント レベル 2 (半角6スペース)
+                report_lines.append("    <details>")
+                report_lines.append("      <summary>クリックして展開</summary>")
                 report_lines.append("")
-                report_lines.append("      <pre><code>") # インデント レベル 2 (半角6スペース)
+                report_lines.append("      <pre><code>")
                 escaped_cot = str(exp1_cot)
-                report_lines.extend(["      " + line for line in escaped_cot.splitlines()]) # CoTのインデントを修正 (半角6スペース)
-                report_lines.append("      </code></pre>") # インデント レベル 2
-                report_lines.append("    </details>") # インデント レベル 1
+                report_lines.extend(["      " + line for line in escaped_cot.splitlines()])
+                report_lines.append("      </code></pre>")
+                report_lines.append("    </details>")
 
             report_lines.append(f"- **{model2_name} の回答:** `{ans2}`")
             if exp2_expl:
@@ -355,19 +320,18 @@ def generate_markdown_report(
 
             if exp2_cot:
                 report_lines.append(f"  - **思考プロセス (CoT) ({model2_name}):**")
-                report_lines.append("    <details>") # インデント レベル 1
-                report_lines.append("      <summary>クリックして展開</summary>") # インデント レベル 2
+                report_lines.append("    <details>")
+                report_lines.append("      <summary>クリックして展開</summary>")
                 report_lines.append("")
-                report_lines.append("      <pre><code>") # インデント レベル 2
+                report_lines.append("      <pre><code>")
                 escaped_cot = str(exp2_cot)
-                report_lines.extend(["      " + line for line in escaped_cot.splitlines()]) # CoTのインデントを修正 (半角6スペース)
-                report_lines.append("      </code></pre>") # インデント レベル 2
-                report_lines.append("    </details>") # インデント レベル 1
+                report_lines.extend(["      " + line for line in escaped_cot.splitlines()])
+                report_lines.append("      </code></pre>")
+                report_lines.append("    </details>")
 
             report_lines.append("---")
             report_lines.append("")
 
-    # ファイル書き込み (修正なし)
     try:
         output_md_path.parent.mkdir(parents=True, exist_ok=True)
         with open(output_md_path, 'w', encoding='utf-8') as f:
@@ -381,13 +345,11 @@ def generate_markdown_report(
 
 def read_markdown_files(md_files: list[Path]) -> str:
     """複数のMarkdownファイルの内容を読み込んで結合する"""
-    # (変更なし)
     combined_content = ""
     for md_file in md_files:
         if md_file.is_file():
             try:
                 with open(md_file, 'r', encoding='utf-8') as f:
-                    # レポートのヘッダー（モデル名が含まれる）も読み込むようにする
                     combined_content += f"--- コンテンツ開始: {md_file.name} ---\n\n"
                     combined_content += f.read()
                     combined_content += f"\n\n--- コンテンツ終了: {md_file.name} ---\n\n"
@@ -397,14 +359,12 @@ def read_markdown_files(md_files: list[Path]) -> str:
             print(f"警告: Markdownファイルが見つかりません: {md_file}", file=sys.stderr)
     return combined_content
 
-# ▼▼▼ `generate_llm_analysis_prompt` 関数の修正 ▼▼▼
 def generate_llm_analysis_prompt(
-    model1_name: str, # 表示名1
-    model2_name: str, # 表示名2
+    model1_name: str,
+    model2_name: str,
     combined_report_content: str
 ) -> str:
     """LLMに比較考察を依頼するプロンプトを生成する (表示名対応)"""
-    # プロンプト内のモデル名を model1_name, model2_name で置換
     prompt = f"""
 あなたは医療分野とAIモデルの評価に詳しい専門家です。
 以下の背景情報と誤答比較レポートの内容に基づいて、2つのLLMモデル（{model1_name} と {model2_name}）の医師国家試験問題における誤答傾向を詳細に比較・考察してください。
@@ -440,12 +400,11 @@ def generate_llm_analysis_prompt(
 - 推測に基づく場合は、その旨を明記してください。
 """
     return prompt
-# ▲▲▲ `generate_llm_analysis_prompt` 関数の修正 ▲▲▲
 
 def call_llm_for_analysis(
     prompt: str,
     model_key: str,
-    llm_solver: LLMSolver # LLMSolverのインスタンスを受け取る
+    llm_solver: LLMSolver
 ) -> str:
     """指定されたLLMモデルで分析プロンプトを実行し、結果を返す"""
     if llm_solver is None:
@@ -455,7 +414,7 @@ def call_llm_for_analysis(
     try:
         config, client = llm_solver.get_config_and_client(model_key)
 
-        max_output_tokens = 65536 # LLMの最大トークン数を設定 (例: 65536)
+        max_output_tokens = 65536
 
         if config["client_type"] == "anthropic":
              messages=[{"role": "user", "content": prompt}]
@@ -466,7 +425,7 @@ def call_llm_for_analysis(
                  temperature=0.5
              )
              analysis_result = response.content[0].text
-        else: # OpenAI互換API
+        else:
              messages=[
                  {"role": "user", "content": prompt}
              ]
@@ -497,19 +456,18 @@ def call_llm_for_analysis(
 def compare_wrong_answers(
     exp1: str,
     exp2: str,
-    model1_name: str, # 追加: 表示名1
-    model2_name: str, # 追加: 表示名2
+    model1_name: str,
+    model2_name: str,
     output_dir: Path,
     results_dir: Path,
     answers_dir: Path,
     output_format: str,
-    analyze_model_key: Optional[str] # LLM分析に使用するモデルキー
+    analyze_model_key: Optional[str]
 ):
-    """2つの実験の誤答を比較し、指定された形式で出力し、オプションでLLM分析を行う (表示名対応, ファイル名修正)""" # docstring更新
+    """2つの実験の誤答を比較し、指定された形式で出力し、オプションでLLM分析を行う"""
 
     print(f"実験 {exp1} ({model1_name}) と {exp2} ({model2_name}) の誤答比較を開始します...")
 
-    # 1. 誤答リストの読み込み
     print("誤答リストを読み込んでいます...")
     wrong1 = load_wrong_answers_csv(exp1, results_dir)
     wrong2 = load_wrong_answers_csv(exp2, results_dir)
@@ -517,7 +475,6 @@ def compare_wrong_answers(
         print("エラー: 両方の実験の誤答データが見つかりませんでした。処理を中断します。", file=sys.stderr)
         return
 
-    # 2. 誤答パターンの分類
     both_wrong = wrong1.intersection(wrong2)
     exp1_wrong_only = wrong1.difference(wrong2)
     exp2_wrong_only = wrong2.difference(wrong1)
@@ -525,20 +482,17 @@ def compare_wrong_answers(
     print(f"  - {model1_name} ({exp1}) のみ誤答: {len(exp1_wrong_only)} 件")
     print(f"  - {model2_name} ({exp2}) のみ誤答: {len(exp2_wrong_only)} 件")
 
-    # 3. 回答詳細データの読み込み
     print("回答詳細データを読み込んでいます...")
     answers1 = load_answers_json(exp1, answers_dir)
     answers2 = load_answers_json(exp2, answers_dir)
     if not answers1 and not answers2:
          print("警告: 両方の実験の回答詳細データが見つかりませんでした。回答情報は空になります。")
 
-    # 4. 正解データの読み込み
     print("正解データを読み込んでいます...")
     correct_answers = load_correct_answers(results_dir / "correct_answers.csv")
 
-    # 5. 比較結果のデータフレーム作成
     comparison_data = []
-    all_compared_questions = sorted(list(both_wrong.union(exp1_wrong_only).union(exp2_wrong_only)), key=qnum_to_sortkey) # 事前にソート
+    all_compared_questions = sorted(list(both_wrong.union(exp1_wrong_only).union(exp2_wrong_only)), key=qnum_to_sortkey)
     default_q_data = {"answer": "Data Not Found", "explanation": "", "cot": None, "question_text": "", "choices": None, "has_image": None}
     for q_num in all_compared_questions:
         ans1_data = answers1.get(q_num, default_q_data)
@@ -548,15 +502,14 @@ def compare_wrong_answers(
         choices = ans1_data.get("choices") or ans2_data.get("choices")
         has_image = ans1_data.get("has_image") if ans1_data.get("has_image") is not None else ans2_data.get("has_image")
 
-        # comparison_type の設定 (表示名を使う)
         if q_num in both_wrong:
             comp_type = "Both Wrong"
         elif q_num in exp1_wrong_only:
-            comp_type = f"{model1_name} Wrong Only" # 表示名を使用
+            comp_type = f"{model1_name} Wrong Only"
             if ans2_data["answer"] == "Data Not Found":
                  ans2_data["answer"] = "Correct (or Data Not Found)"
         elif q_num in exp2_wrong_only:
-             comp_type = f"{model2_name} Wrong Only" # 表示名を使用
+             comp_type = f"{model2_name} Wrong Only"
              if ans1_data["answer"] == "Data Not Found":
                  ans1_data["answer"] = "Correct (or Data Not Found)"
         else:
@@ -591,11 +544,9 @@ def compare_wrong_answers(
     other_columns = [col for col in df_comparison.columns if col not in existing_columns]
     df_comparison = df_comparison[existing_columns + other_columns]
 
-    # 6. 出力形式に応じて処理
     output_basename = f"comparison_119_{exp1}_vs_{exp2}"
     md_files_generated = []
 
-    # CSV出力 (変更なし)
     if output_format in ['csv', 'all']:
         output_csv_path = output_dir / f"{output_basename}.csv"
         try:
@@ -613,64 +564,48 @@ def compare_wrong_answers(
 
         print("Markdownレポートを生成中 (分割)...")
 
-        # ファイル名用に安全な形式にする関数
         def sanitize_for_filename(name: str) -> str:
-             # スラッシュ、コロン、スペース、その他ファイル名に使えない可能性のある文字をアンダースコアに置換
              name = re.sub(r'[\\/:*?"<>|\s]+', '_', name)
-             # 連続するアンダースコアを1つにまとめる
              name = re.sub(r'_+', '_', name)
-             # 先頭や末尾のアンダースコアを削除
              name = name.strip('_')
              return name
 
-        # 比較タイプごとの処理
-        # DataFrame内の実際の比較タイプ名 (`comp_type_value`) でループ
         for comp_type_value in df_comparison['comparison_type'].unique():
             df_filtered = df_comparison[df_comparison['comparison_type'] == comp_type_value]
 
             if not df_filtered.empty:
-                # --- ファイル名生成 ---
-                # ベース名 (実験識別子を含む)
                 base_filename_part = f"comparison_119_{exp1}_vs_{exp2}"
 
-                # 比較タイプ部分のファイル名文字列を決定
                 comp_type_filename_part = ""
                 if comp_type_value == "Both Wrong":
                     comp_type_filename_part = "Both_Wrong"
                 elif comp_type_value == f"{model1_name} Wrong Only":
-                    # 表示名をファイル名用にサニタイズ
                     safe_model_name = sanitize_for_filename(exp1)
                     comp_type_filename_part = f"{safe_model_name}_Wrong_Only"
                 elif comp_type_value == f"{model2_name} Wrong Only":
-                    # 表示名をファイル名用にサニタイズ
                     safe_model_name = sanitize_for_filename(exp2)
                     comp_type_filename_part = f"{safe_model_name}_Wrong_Only"
                 else:
-                    # 想定外の比較タイプの場合も安全な名前にする
                     comp_type_filename_part = sanitize_for_filename(comp_type_value)
 
-                # 最終的なファイルパス
                 output_md_path = output_dir / f"{base_filename_part}_{comp_type_filename_part}.md"
-                # --- ファイル名生成ここまで ---
 
                 error_analysis_arg = error_analysis if comp_type_value == "Both Wrong" else None
 
-                # レポート生成関数呼び出し (引数は変更なし)
                 generate_markdown_report(
                     df_filtered,
                     exp1,
                     exp2,
-                    model1_name, # 表示名1
-                    model2_name, # 表示名2
-                    output_md_path, # 正しく生成されたパス
-                    comp_type_value, # レポートタイトル用 (表示名込み)
+                    model1_name,
+                    model2_name,
+                    output_md_path,
+                    comp_type_value,
                     error_analysis_arg
                 )
                 md_files_generated.append(output_md_path)
             else:
                  print(f"情報: 比較タイプ '{comp_type_value}' に該当する問題がないため、Markdownファイルは生成されません。")
 
-    # 7. LLMによる分析
     if analyze_model_key:
         if LLMSolver is None:
              print("エラー: LLMSolverがインポートされていないため、LLM分析を実行できません。", file=sys.stderr)
@@ -712,7 +647,6 @@ if __name__ == "__main__":
         description='2つのLLM実験の誤答パターンを比較し、CSVまたはMarkdown形式で出力します。\nMarkdownは比較タイプごとに分割され、オプションでLLMによる考察も生成します。',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
-    # --- 引数定義 (修正) ---
     parser.add_argument(
         'exp1',
         help='比較対象の実験識別子1 (例: gemini-2.5-pro)'
@@ -767,14 +701,12 @@ if __name__ == "__main__":
 
     output_path.mkdir(parents=True, exist_ok=True)
 
-    # 表示名を決定 (指定がなければexp1, exp2を使用)
     model1_display_name = args.model1_name if args.model1_name else args.exp1
     model2_display_name = args.model2_name if args.model2_name else args.exp2
 
-    # qnum_to_sortkey 関数をグローバルスコープで定義 (compare_wrong_answers 内で使用するため)
     def qnum_to_sortkey(qnum_str):
         if pd.isna(qnum_str):
-             return float('inf') # あるいは他の適切な値
+             return float('inf')
         qnum = str(qnum_str)
         match = re.match(r'(\d+)([A-I])(\d+)', qnum)
         if match:
@@ -787,14 +719,14 @@ if __name__ == "__main__":
                 num_only = int(re.sub(r'\D', '', qnum))
                 return num_only
             except ValueError:
-                return qnum # 数字以外が含まれる場合は文字列として扱う
+                return qnum
 
 
     compare_wrong_answers(
         args.exp1,
         args.exp2,
-        model1_display_name, # 表示名1を渡す
-        model2_display_name, # 表示名2を渡す
+        model1_display_name,
+        model2_display_name,
         output_path,
         results_path,
         answers_path,

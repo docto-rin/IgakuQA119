@@ -115,7 +115,6 @@ def main():
             command.append(str(input_json_path))
             command.extend(['--model_name', args.model_name])
             command.extend(['--questions'] + questions_in_block)
-            # 生成したブロック固有の --exp 値を渡す
             command.extend(['--exp', exp_for_this_block])
 
             print(f"実行コマンド: {' '.join(command)}")
