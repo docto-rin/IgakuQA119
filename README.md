@@ -102,7 +102,7 @@ All experiments, comparisons, and common settings are defined in the `experiment
 *   **`comparisons`:** Define pairs of experiments to compare.
 *   **`common_settings`:** Define shared parameters like dataset paths.
 
-For more details, see [4. Configuration Details (`experiments.yaml`)](#4-configuration-details-experimentsyaml).
+For more details, see [3. Configuration Details (`experiments.yaml`)](#3-configuration-details-experimentsyaml).
 
 ## 2. Workflow using `run_exp.sh`
 
@@ -208,23 +208,13 @@ This runs `grade_answers.py`, using the `exp_suffix` (or the merged suffix if re
 
 **Demo results** can be found in `results/demo/` to understand the output format.
 
-#### Step 2.4: (Optional) Compare Results
+#### Step 2.4: (Optional) Handling Skipped Questions
 
-Compare the performance of two different experiments.
+If questions were skipped during the initial run (e.g., due to errors), the `run_exp.sh` script can help re-run them and merge the results. This functionality is primarily managed through the `rerun` task or as part of the `all` task when `needs_rerun: true` is configured for an experiment.
 
-```bash
-# Example: Compare the base CA-DSR1 model vs its SFT variant
-./run_exp.sh -p base_vs_sft
-```
-This uses the `compare_wrong_answers.py` script with the models and analyzer defined for the `base_vs_sft` key in the `comparisons` section of `experiments.yaml`. Comparison reports are saved in the `results/` directory. See `scripts/README.md` for more details on the comparison script.
+##### Configuration for Rerunning Skipped Questions
 
-## 3. Handling Skipped Questions
-
-If questions were skipped during the initial run (e.g., due to errors), you can re-run them and merge the results.
-
-### 3.1 Configuration
-
-1.  Ensure the `grade_answers.py` script generated a `results/119_<exp_suffix>_skipped.txt` file during the initial grading attempt (or the `main.py` run created one).
+1.  Ensure the `grade_answers.py` script generated a `results/119_<exp_suffix>_skipped.txt` file during a previous grading attempt (or `main.py` created one).
 2.  In `experiments.yaml`, find the entry for the experiment that had skipped questions.
 3.  **Uncomment or add the line `needs_rerun: true`** within that experiment's definition.
 
@@ -239,9 +229,9 @@ experiments:
   # ...
 ```
 
-### 3.2 Execution
+##### Execution via `run_exp.sh`
 
-You have two main options:
+You have two main options using `run_exp.sh`:
 
 **Option A: Run the dedicated `rerun` task, then `grade`:**
 
@@ -260,11 +250,23 @@ The `rerun` task executes `rerun_skipped.py` (creating `*_retry.json` files) and
 # Rerun everything, including skipped handling if needed
 ./run_exp.sh -e gemini-2_0-flash
 ```
-If `needs_rerun: true` is set, the `all` task will automatically perform the `rerun` steps *after* the main `run` step (if any new answers were generated) and *before* the final `grade` step.
+If `needs_rerun: true` is set for the `gemini-2_0-flash` experiment, the `all` task will automatically perform the `rerun` steps *after* the main `run` step (if any new answers were generated or if skipped files exist) and *before* the final `grade` step.
 
 This streamlined process ensures that all available answers (original + retried) are considered for the final grading and leaderboard update.
 
-## 4. Configuration Details (`experiments.yaml`)
+#### Step 2.5: (Optional) Compare Results
+
+Compare the performance of two different experiments.
+
+```bash
+# Example: Compare the base CA-DSR1 model vs its SFT variant
+./run_exp.sh -p base_vs_sft
+```
+This uses the `scripts/compare_wrong_answers.py` script with the models and analyzer defined for the `base_vs_sft` key in the `comparisons` section of `experiments.yaml`. Comparison reports are saved in the `results/` directory. See `scripts/README.md` for more details on the comparison script.
+
+**Demo results** can be found in `results/demo/` to understand the output format.
+
+## 3. Configuration Details (`experiments.yaml`)
 
 The `experiments.yaml` file is central to managing evaluations.
 
