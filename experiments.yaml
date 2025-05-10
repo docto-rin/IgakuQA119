@@ -53,7 +53,19 @@ experiments:
     exp_suffix: "qwen3-235b-a22b"
     model_name: "openrouter-qwen/qwen3-235b-a22b:free"
     entry_name: "Qwen3-235B-A22B"
-  
+
+  llama4-maverick:
+    exp_suffix: "llama4-maverick"
+    model_name: "openrouter-meta-llama/llama-4-maverick:free"
+    entry_name: "Llama4-Maverick"
+    supports_vision: true
+
+  llama4-scout:
+    exp_suffix: "llama4-scout"
+    model_name: "openrouter-meta-llama/llama-4-scout:free"
+    entry_name: "Llama4-Scout"
+    supports_vision: true
+
   # via Ollama
   qwen3-32b:
     exp_suffix: "qwen3-32b"
@@ -120,13 +132,17 @@ comparisons:
     model1_key: "ca-dsr1-dq32b-jp-sft"
     model2_key: "ca-dsr1-dq32b-jp-cpt"
     analyzer: "gemini-2.5-pro-exp-03-25"
-  gemini_vs_qwen235b:
+  gemini_vs_qwen3:
     model1_key: "gemini-2_5-pro"
     model2_key: "qwen3-235b-a22b"
     analyzer: "gemini-2.5-pro-exp-03-25"
   gemini_vs_deepseek:
     model1_key: "gemini-2_5-pro"
     model2_key: "deepseek-r1"
+    analyzer: "gemini-2.5-pro-exp-03-25"
+  llama4_vs_qwen3:
+    model1_key: "llama4-maverick"
+    model2_key: "qwen3-235b-a22b"
     analyzer: "gemini-2.5-pro-exp-03-25"
 
 # Common settings (can be overridden in specific experiments if needed)

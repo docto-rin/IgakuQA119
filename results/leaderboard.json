@@ -236,5 +236,33 @@
         "no_image_correct": 236,
         "no_image_total": 297,
         "no_image_accuracy": 0.7946127946127947
+    },
+    "Llama4-Maverick": {
+        "overall_score": 440.0,
+        "overall_possible_score": 500.0,
+        "overall_score_rate": 0.88,
+        "overall_correct": 350,
+        "overall_total": 400,
+        "overall_accuracy": 0.875,
+        "no_image_score": 336.0,
+        "no_image_possible_score": 383.0,
+        "no_image_score_rate": 0.8772845953002611,
+        "no_image_correct": 260,
+        "no_image_total": 297,
+        "no_image_accuracy": 0.8754208754208754
+    },
+    "Llama4-Scout": {
+        "overall_score": 392.0,
+        "overall_possible_score": 500.0,
+        "overall_score_rate": 0.784,
+        "overall_correct": 314,
+        "overall_total": 400,
+        "overall_accuracy": 0.785,
+        "no_image_score": 303.0,
+        "no_image_possible_score": 383.0,
+        "no_image_score_rate": 0.7911227154046997,
+        "no_image_correct": 237,
+        "no_image_total": 297,
+        "no_image_accuracy": 0.797979797979798
     }
 }
