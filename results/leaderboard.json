@@ -264,5 +264,33 @@
         "no_image_correct": 237,
         "no_image_total": 297,
         "no_image_accuracy": 0.797979797979798
+    },
+    "Qwen2.5-72B": {
+        "overall_score": 398.0,
+        "overall_possible_score": 500.0,
+        "overall_score_rate": 0.796,
+        "overall_correct": 314,
+        "overall_total": 400,
+        "overall_accuracy": 0.785,
+        "no_image_score": 311.0,
+        "no_image_possible_score": 383.0,
+        "no_image_score_rate": 0.8120104438642297,
+        "no_image_correct": 241,
+        "no_image_total": 297,
+        "no_image_accuracy": 0.8114478114478114
+    },
+    "Qwen2.5-VL-72B": {
+        "overall_score": 403.0,
+        "overall_possible_score": 500.0,
+        "overall_score_rate": 0.806,
+        "overall_correct": 325,
+        "overall_total": 400,
+        "overall_accuracy": 0.8125,
+        "no_image_score": 309.0,
+        "no_image_possible_score": 383.0,
+        "no_image_score_rate": 0.8067885117493473,
+        "no_image_correct": 245,
+        "no_image_total": 297,
+        "no_image_accuracy": 0.8249158249158249
     }
 }
