@@ -22,7 +22,8 @@ output/
 
 # data
 data/
-answers/
+answers/*
+!answers/demo/
 cleaned/
 pdf/
 csv/

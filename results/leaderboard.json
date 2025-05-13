@@ -292,5 +292,19 @@
         "no_image_correct": 245,
         "no_image_total": 297,
         "no_image_accuracy": 0.8249158249158249
+    },
+    "Preferred-MedLLM-Qwen-72B": {
+        "overall_score": 332.0,
+        "overall_possible_score": 500.0,
+        "overall_score_rate": 0.664,
+        "overall_correct": 272,
+        "overall_total": 400,
+        "overall_accuracy": 0.68,
+        "no_image_score": 261.0,
+        "no_image_possible_score": 383.0,
+        "no_image_score_rate": 0.6814621409921671,
+        "no_image_correct": 209,
+        "no_image_total": 297,
+        "no_image_accuracy": 0.7037037037037037
     }
 }

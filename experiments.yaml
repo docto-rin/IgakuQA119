@@ -93,6 +93,12 @@ experiments:
     entry_name: "Qwen3-30B-A3B"
     setup_command: "ollama run qwen3:30b-a3b"
 
+  pfn-medllm-qwen-72b:
+    exp_suffix: "pfn-medllm-qwen-72b"
+    model_name: "ollama-models/Preferred-MedLLM-Qwen-72B-bf16.gguf:latest"
+    entry_name: "Preferred-MedLLM-Qwen-72B"
+    setup_command: "ollama run models/Preferred-MedLLM-Qwen-72B-bf16.gguf:latest"
+
   cogito-32b-think:
     exp_suffix: "cogito-32b-think"
     model_name: "ollama-cogito:32b"
@@ -155,6 +161,10 @@ comparisons:
     model1_key: "llama4-maverick"
     model2_key: "qwen3-235b-a22b"
     analyzer: "gemini-2.5-pro-exp-03-25"
+  pfn_vs_qwen:
+    model1_key: "pfn-medllm-qwen-72b"
+    model2_key: "qwen2_5-72b"
+    analyzer: "gemini-2.5-pro-preview-05-06"
 
 # Common settings (can be overridden in specific experiments if needed)
 common_settings:
