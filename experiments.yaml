@@ -32,6 +32,11 @@ experiments:
     model_name: "plamo-1.0-prime"
     entry_name: "PLaMo-1.0-Prime"
 
+  plamo-2_0-prime:
+    exp_suffix: "plamo-2_0-prime"
+    model_name: "plamo-2.0-prime"
+    entry_name: "PLaMo-2.0-Prime"
+
   # via OpenRouter
   gpt-4o-mini:
     exp_suffix: "gpt-4o-mini"
@@ -116,6 +121,12 @@ experiments:
     model_name: "ollama-qwq:32b"
     entry_name: "QwQ-32B"
     setup_command: "ollama run qwq:32b"
+  
+  medgemma-27b:
+    exp_suffix: "medgemma-27b"
+    model_name: "hf.co/DevQuasar/google.medgemma-27b-text-it-GGUF:Q6_K"
+    entry_name: "MedGemma-27B-Q6_K"
+    setup_command: "ollama run hf.co/DevQuasar/google.medgemma-27b-text-it-GGUF:Q6_K"
 
   ca-dsr1-dq32b-jp:
     exp_suffix: "ca-dsr1-dq32b-jp"

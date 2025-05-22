@@ -96,16 +96,6 @@ class LLMSolver:
                 "system_prompt": self.system_prompt,
                 "parameters": {}
             },
-            "plamo-1.0-prime": {
-                "api_key": os.getenv("PLAMO_API_KEY"),
-                "base_url": "https://platform.preferredai.jp/api/completion/v1",
-                "model_name": "plamo-1.0-prime",
-                "client_type": "openai",
-                "supports_vision": False,
-                "system_role": "user",
-                "system_prompt": self.system_prompt,
-                "parameters": {}
-            },
             "gemini-flexible": {
                 "api_key": os.getenv("GEMINI_API_KEY"),
                 "base_url": "https://generativelanguage.googleapis.com/v1beta/",
@@ -142,6 +132,16 @@ class LLMSolver:
                 "system_role": "system",
                 "system_prompt": self.system_prompt,
                 "parameters": {}
+            },
+            "plamo-flexible": {
+                "api_key": os.getenv("PLAMO_API_KEY"),
+                "base_url": "https://platform.preferredai.jp/api/completion/v1",
+                "model_name": None,
+                "client_type": "openai",
+                "supports_vision": False,
+                "system_role": "user",
+                "system_prompt": self.system_prompt,
+                "parameters": {}
             }
         }
 
@@ -163,6 +163,9 @@ class LLMSolver:
             elif model_key.startswith("openrouter-"):
                 config = copy.deepcopy(self.models["openrouter-flexible"])
                 config["model_name"] = model_key.split("openrouter-", 1)[1]
+            elif model_key.startswith("plamo-"):
+                config = copy.deepcopy(self.models["plamo-flexible"])
+                config["model_name"] = model_key
             else:
                 raise ValueError(f"未定義のモデルキーです: {model_key}")
 

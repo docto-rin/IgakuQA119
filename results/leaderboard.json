@@ -306,5 +306,33 @@
         "no_image_correct": 209,
         "no_image_total": 297,
         "no_image_accuracy": 0.7037037037037037
+    },
+    "MedGemma-27B-Q6_K": {
+        "overall_score": 324.0,
+        "overall_possible_score": 500.0,
+        "overall_score_rate": 0.648,
+        "overall_correct": 250,
+        "overall_total": 400,
+        "overall_accuracy": 0.625,
+        "no_image_score": 254.0,
+        "no_image_possible_score": 383.0,
+        "no_image_score_rate": 0.6631853785900783,
+        "no_image_correct": 194,
+        "no_image_total": 297,
+        "no_image_accuracy": 0.6531986531986532
+    },
+    "PLaMo-2.0-Prime": {
+        "overall_score": 286.0,
+        "overall_possible_score": 500.0,
+        "overall_score_rate": 0.572,
+        "overall_correct": 228,
+        "overall_total": 400,
+        "overall_accuracy": 0.57,
+        "no_image_score": 229.0,
+        "no_image_possible_score": 383.0,
+        "no_image_score_rate": 0.597911227154047,
+        "no_image_correct": 175,
+        "no_image_total": 297,
+        "no_image_accuracy": 0.5892255892255892
     }
 }
