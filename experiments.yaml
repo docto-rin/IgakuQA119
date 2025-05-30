@@ -49,6 +49,11 @@ experiments:
     model_name: "openrouter-deepseek/deepseek-r1:free"
     entry_name: "DeepSeek-R1"
 
+  deepseek-r1-0528:
+    exp_suffix: "deepseek-r1-0528"
+    model_name: "openrouter-deepseek/deepseek-r1-0528:free"
+    entry_name: "DeepSeek-R1-0528"
+
   deepseek-v3-0324:
     exp_suffix: "deepseek-v3-0324"
     model_name: "openrouter-deepseek/deepseek-chat-v3-0324:free"

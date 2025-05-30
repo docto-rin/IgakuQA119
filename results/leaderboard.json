@@ -334,5 +334,19 @@
         "no_image_correct": 175,
         "no_image_total": 297,
         "no_image_accuracy": 0.5892255892255892
+    },
+    "DeepSeek-R1-0528": {
+        "overall_score": 461.0,
+        "overall_possible_score": 500.0,
+        "overall_score_rate": 0.922,
+        "overall_correct": 367,
+        "overall_total": 400,
+        "overall_accuracy": 0.9175,
+        "no_image_score": 364.0,
+        "no_image_possible_score": 383.0,
+        "no_image_score_rate": 0.9503916449086162,
+        "no_image_correct": 282,
+        "no_image_total": 297,
+        "no_image_accuracy": 0.9494949494949495
     }
 }
