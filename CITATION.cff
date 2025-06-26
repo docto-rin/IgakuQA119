@@ -1,0 +1,14 @@
+# This is a CITATION.cff file. See https://citation-file-format.github.io/
+
+cff-version: 1.2.0
+message: "If you use this project in your research, please cite it."
+authors:
+  - family-names: "Iwase"
+    given-names: "Naoto"
+    affiliation: "Nagoya University School of Medicine"
+title: "IgakuQA119: LLM Evaluation on the 119th Japanese Medical Licensing Examination"
+version: v1.0.0
+doi: 10.5281/zenodo.15743221
+date-released: 2025-06-26
+repository-code: "https://github.com/docto-rin/IgakuQA119"
+license: Apache-2.0

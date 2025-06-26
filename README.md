@@ -1,5 +1,7 @@
 # IgakuQA119: LLM Evaluation on the 119th Japanese Medical Licensing Examination
 
+[![DOI](https://zenodo.org/badge/957662897.svg)](https://doi.org/10.5281/zenodo.15743221)
+
 ## Overview
 
 IgakuQA119 is a repository designed to **evaluate the performance of Large Language Models (LLMs) using the 119th Japanese Medical Licensing Examination (JMLE)**. This project, inspired by the [nmle-rta](https://github.com/iKora128/nmle-rta/tree/main) repository, assesses LLMs' comprehension and application abilities within the context of Japan's latest medical licensing exam.
@@ -309,3 +311,13 @@ Preprocessing scripts are available in `scripts/prepro_utils` for transparency.
 This repository is licensed under the Apache License 2.0. See the [LICENSE](LICENSE) file.
 
 The original repository [nmle-rta](https://github.com/iKora128/nmle-rta/tree/main) is also licensed under Apache License 2.0.
+
+## Citation
+
+If you use IgakuQA119 in your research, we recommend using the "Cite this repository" button that has appeared on the right-hand sidebar of the repository page.
+
+Alternatively, you can use the following DOI:
+
+[![DOI](https://zenodo.org/badge/957662897.svg)](https://doi.org/10.5281/zenodo.15743221)
+
+The above DOI corresponds to the latest versioned release as [published to Zenodo](https://zenodo.org/records/15743222), where you will find all earlier releases. To cite IgakuQA119 independent of version, use https://doi.org/10.5281/zenodo.15743221, which will always redirect to the latest release.
