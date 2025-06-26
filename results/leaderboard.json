@@ -348,5 +348,33 @@
         "no_image_correct": 282,
         "no_image_total": 297,
         "no_image_accuracy": 0.9494949494949495
+    },
+    "OpenAI-o3": {
+        "overall_score": 482.0,
+        "overall_possible_score": 500.0,
+        "overall_score_rate": 0.964,
+        "overall_correct": 384,
+        "overall_total": 400,
+        "overall_accuracy": 0.96,
+        "no_image_score": 370.0,
+        "no_image_possible_score": 383.0,
+        "no_image_score_rate": 0.9660574412532640,
+        "no_image_correct": 286,
+        "no_image_total": 297,
+        "no_image_accuracy": 0.9629629629629630
+    },
+    "Claude-Sonnet-4": {
+        "overall_score": 471.0,
+        "overall_possible_score": 500.0,
+        "overall_score_rate": 0.942,
+        "overall_correct": 375,
+        "overall_total": 400,
+        "overall_accuracy": 0.9375,
+        "no_image_score": 363.0,
+        "no_image_possible_score": 383.0,
+        "no_image_score_rate": 0.9477806788511750,
+        "no_image_correct": 281,
+        "no_image_total": 297,
+        "no_image_accuracy": 0.9461279461279460
     }
 }
